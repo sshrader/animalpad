@@ -34,7 +34,7 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 | `DATA_DIR` | Where the volume is mounted (for example `/data`). Pictures go in `<DATA_DIR>/art` and the launch list in `<DATA_DIR>/launches.json`. Defaults to `/data` when that folder exists, otherwise memory only. |
 | `ART_DIR` | Optional. Overrides just the pictures folder. |
 | `VERIFY_SECRET` | Optional. Secret behind the website-check codes. If unset and a volume exists, one is created in `<DATA_DIR>/verify-secret`. |
-| `LAUNCHES_FILE` | Optional. Overrides where the launch list is saved. |
+| `LAUNCHES_FILE` | Optional. Overrides where the launch list is saved. Default: `<DATA_DIR>/launches.json` on devnet and `launches.<cluster>.json` otherwise, so devnet and mainnet lists never mix. Pointing it at a new file name is a safe way to start with an empty list. |
 | `HIDE_POOLS` | Optional. Comma-separated pool addresses to hide from the public "Recently launched" list. |
 | `LAUNCH_RPC_URL` | RPC address. Devnet defaults to the public one. Mainnet requires a dedicated paid RPC (keep it in Railway Variables). |
 | `LAUNCH_CLUSTER` | `devnet` (default) or `mainnet-beta`. Loads `devnet/presets.json` or `devnet/presets.mainnet-beta.json`. |

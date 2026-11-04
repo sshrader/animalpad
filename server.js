@@ -349,7 +349,7 @@ if (require.main === module) {
     presetsFile: path.join(__dirname, 'devnet', cluster === 'devnet' ? 'presets.json' : 'presets.' + cluster + '.json'),
     rpcUrl: process.env.LAUNCH_RPC_URL || undefined
   });
-  const launchesFile = env('LAUNCHES_FILE') || (dataDir ? path.join(dataDir, 'launches.json') : '');
+  const launchesFile = env('LAUNCHES_FILE') || (dataDir ? path.join(dataDir, cluster === 'devnet' ? 'launches.json' : 'launches.' + cluster + '.json') : '');
   const launches = createLaunches({
     file: launchesFile,
     inspect: address => launcher.inspect(address),
