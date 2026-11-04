@@ -60,17 +60,17 @@ html { scroll-behavior: smooth; }
 #curve .pin:hover circle.ring, #curve .pin:focus-visible circle.ring { stroke: var(--accent); }
 #curve .pin:focus-visible { outline: none; }
 #curve .pin text { fill: var(--text); font: 700 14px var(--display); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 12px; }
+.feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 140px)); gap: 10px; margin-bottom: 12px; }
 .feed:empty { display: none; }
-.coin { display: grid; gap: 8px; padding: 10px; border: 2px solid var(--edge); border-radius: 16px; background: var(--soft); min-width: 0; align-content: start; }
+.coin { display: grid; gap: 6px; padding: 8px; border: 2px solid var(--edge); border-radius: 16px; background: var(--soft); min-width: 0; align-content: start; }
 .coin img, .coin .noimg { width: 100%; aspect-ratio: 1; object-fit: cover; border: 2px solid var(--edge); border-radius: 12px; background: var(--paper); display: block; }
-.coin .noimg { display: grid; place-items: center; font: 700 2rem/1 var(--display); color: var(--muted); }
+.coin .noimg { display: grid; place-items: center; font: 700 1.4rem/1 var(--display); color: var(--muted); }
 .coin .top2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
-.coin strong { font: 700 1rem/1.2 var(--display); overflow-wrap: anywhere; }
+.coin strong { font: 700 0.85rem/1.2 var(--display); overflow-wrap: anywhere; }
 .coin .sym { font-size: 12px; font-weight: 700; color: var(--muted); }
-.coin .meta { font-size: 12px; color: var(--muted); }
+.coin .meta { font-size: 11px; color: var(--muted); }
 .coin .tbar { height: 10px; }
-.coin .btn { padding: 6px 12px; font-size: 14px; box-shadow: 0 3px 0 var(--edge); }
+.coin .btn { padding: 4px 10px; font-size: 13px; box-shadow: 0 3px 0 var(--edge); }
 .band { display: grid; gap: 14px; }
 .band h2 { margin: 0; font: 700 clamp(1.5rem, 4vw, 2rem)/1.1 var(--display); letter-spacing: 0; }
 .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; counter-reset: s; }
