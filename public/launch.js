@@ -138,7 +138,8 @@
       const m = err && err.message ? String(err.message) : '';
       say(err && err.code === 'no_wallet' ? W.NO_WALLET
         : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.'
-        : 'The launch did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet and has enough SOL.' : 'Devnet and has test SOL.'), true);
+        : 'The launch did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet and has enough SOL.' : 'Devnet and has test SOL.') + (m ? ' Details: ' + m.slice(0, 300) : ''), true);
+      console.error('launch error', err);
       if (pending) $('dl-status').textContent += ' Your coin exists. Press Launch to continue where it stopped.';
     }
     busy = false; render();
