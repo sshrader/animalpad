@@ -9,6 +9,7 @@
   let busy = false;
   let enabled = false;
   let loaded = false; // the config answer has arrived
+  let founderMode = false; // ?founder=1 stages the ready-made founder picture instead of an AI one
 
   const WHY = {
     bad_prompt: 'Describe the animal in a few words, like "a tired heron in a tiny crown".',
@@ -32,8 +33,8 @@
 
   function render() {
     $('studio').hidden = !loaded;
-    $('a-off').hidden = enabled;
-    $('a-on').hidden = !enabled;
+    $('a-off').hidden = enabled || founderMode;
+    $('a-on').hidden = !(enabled || founderMode);
     $('a-gen').disabled = busy;
     $('a-redo').disabled = busy;
     $('a-accept').disabled = busy;
@@ -107,7 +108,23 @@
   fetch('/api/art/config', { headers: { Accept: 'application/json' } })
     .then(r => r.json())
     .then(info => { enabled = Boolean(info && info.enabled); loaded = true; render(); })
-    .catch(() => { enabled = false; loaded = true; render(); });
+    .catch(() => { enabled = false; loaded = true; render(); })
+    .then(loadFounder);
+
+  // The founder coin: /?founder=1 loads a ready-made picture. The server only lets the founder wallet launch it.
+  function loadFounder() {
+    if (!/[?&]founder=1\b/.test(location.search)) return;
+    fetch('/api/founder', { headers: { Accept: 'application/json' } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!d || typeof d.id !== 'string') { say('The founder coin is not set up on this server.', true); return; }
+        founderMode = true; current = d;
+        $('a-name').value = d.name; $('a-sym').value = d.ticker;
+        say('Founder coin loaded. Accept it, then launch with the founder wallet.');
+        render();
+      })
+      .catch(() => say('Could not load the founder coin.', true));
+  }
   render();
 })();
 

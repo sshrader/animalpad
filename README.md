@@ -39,6 +39,7 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 | `LAUNCH_RPC_URL` | RPC address. Devnet defaults to the public one. Mainnet requires a dedicated paid RPC (keep it in Railway Variables). |
 | `LAUNCH_CLUSTER` | `devnet` (default) or `mainnet-beta`. Loads `devnet/presets.json` or `devnet/presets.mainnet-beta.json`. |
 | `MAINNET_ENABLED` | Must be `yes` for `LAUNCH_CLUSTER=mainnet-beta`. Without it the server refuses to start. |
+| `FOUNDER_WALLET` | Public address of the wallet allowed to launch the founder coin (the HatchPad logo, `founder/logo.png`, no AI). Open `/?founder=1` to stage it. Nobody else can launch it. Optional `FOUNDER_NAME` (default HatchPad), `FOUNDER_SYMBOL` (HATCH), `FOUNDER_DESCRIPTION`. |
 | `PUBLIC_URL` | This site's address, if it can't be worked out from the request. |
 
 ## Guardrails

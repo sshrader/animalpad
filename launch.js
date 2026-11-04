@@ -113,6 +113,8 @@ function createLauncher(opts) {
       artId = typeof b.art === 'string' && ART_ID_RE.test(b.art) ? b.art : '';
       if (!artId || !(ctx && typeof ctx.hasArt === 'function' && ctx.hasArt(artId))) return { status: 400, body: { error: 'bad_art' } };
     }
+    // The founder picture (the HatchPad logo) can only be launched by the founder wallet, so nobody else can launch a coin that looks like the brand.
+    if (artId && ctx && ctx.founder && artId === ctx.founder.id && b.creator !== ctx.founder.wallet) return { status: 403, body: { error: 'founder_only' } };
     // An optional first buy by the creator, put in the same transaction as the launch.
     const firstBuySol = b.firstBuySol === undefined || b.firstBuySol === null || b.firstBuySol === '' ? 0 : Number(b.firstBuySol);
     if (!Number.isFinite(firstBuySol) || firstBuySol < 0 || (firstBuySol > 0 && (firstBuySol < MIN_BUY_SOL || firstBuySol > MAX_BUY_SOL))) return { status: 400, body: { error: 'bad_amount' } };

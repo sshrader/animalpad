@@ -486,3 +486,16 @@ test('server: links are checked, stored with the picture, published, and frozen 
     assert.equal(fresh.setLinks(id, { website: 'https://other.example/' }), false);
   });
 });
+
+test('seed keeps a ready-made picture for good and refuses anything that is not an image', () => {
+  const { createArt } = require('../art.js');
+  const art = createArt({ provider: 'cloudflare', apiKey: 'x', accountId: 'y' });
+  const png = require('fs').readFileSync(require('path').join(__dirname, '..', 'founder', 'logo.png'));
+  const id = art.seed(png, { name: 'HatchPad', ticker: 'HATCH', description: 'First.' });
+  assert.match(id, /^[0-9a-f]{16}$/);
+  const rec = art.record(id);
+  assert.equal(rec.name, 'HatchPad');
+  assert.equal(rec.pinned, true);
+  assert.equal(art.seed(Buffer.from('not an image at all, just text'.repeat(10)), { name: 'x', ticker: 'XXX' }), null);
+  assert.equal(art.seed(png, { name: '', ticker: 'XXX' }), null);
+});

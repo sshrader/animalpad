@@ -368,7 +368,16 @@ function createArt(opts) {
   }
 
   prune();
-  return { info, generate, chat, get, record, pin, setLinks, prune, provider, reason };
+  // Adds a ready-made picture (not AI made) and keeps it for good. Returns its id, or null if it is not a valid image.
+  function seed(buf, text) {
+    const ext = Buffer.isBuffer(buf) && buf.length >= 100 && buf.length <= MAX_IMAGE_BYTES ? imageType(buf) : null;
+    if (!ext || !text || !text.name || !text.ticker) return null;
+    const id = keep(buf, { name: String(text.name), ticker: String(text.ticker), description: String(text.description || '') }, ext);
+    pin(id);
+    return id;
+  }
+
+  return { info, generate, chat, get, record, pin, seed, setLinks, prune, provider, reason };
 }
 
 module.exports = { createArt, ID_RE, blockedWord, normalizeLinks };

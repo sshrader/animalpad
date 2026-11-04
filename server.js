@@ -71,6 +71,7 @@ function createApp(opts) {
   const art = opts.art || createArt({});
   const launches = opts.launches || null;
   const launcher = opts.launcher || null;
+  const founder = opts.founder || null; // { id, wallet, name, ticker, description }
   const actions = createActions({ launches, launcher, cluster: launcher && launcher.info ? launcher.info().cluster : 'devnet' });
   const verifier = opts.verifier || createVerifier({});
   // Website checks fetch other people's sites, so they are limited per visitor and per coin.
@@ -207,7 +208,7 @@ function createApp(opts) {
         if (action === 'prepare' && blockedWord(String(body.name || '') + ' ' + String(body.symbol || ''))) {
           return send(res, 400, JSON.stringify({ error: 'blocked_name' }), noStore);
         }
-        return launcher[action](body, { ip: clientIp(req), baseUrl: baseUrlFor(req), hasArt: id => Boolean(art.get(id)) })
+        return launcher[action](body, { ip: clientIp(req), baseUrl: baseUrlFor(req), founder: founder, hasArt: id => Boolean(art.get(id)) })
           .then(r => {
             if (action === 'prepare' && r.status === 200 && launches) {
               launches.record({ pool: r.body.pool, mint: r.body.mint, name: cleanText(body.name, 32), symbol: String(body.symbol || '').replace(/^\$/, '').trim().toUpperCase(), creator: body.creator, art: body.art, preset: body.preset, devBuySol: r.body.firstBuySol });
@@ -275,6 +276,10 @@ function createApp(opts) {
     if (/^\/coin\/[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pathname)) pathname = '/coin.html';
 
     // Whether the animal studio is switched on, so the page knows whether to offer it.
+    if (pathname === '/api/founder' && (req.method === 'GET' || req.method === 'HEAD')) {
+      if (!founder) return send(res, 404, JSON.stringify({ error: 'not_found' }), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' }));
+      return send(res, 200, JSON.stringify({ id: founder.id, imageUrl: '/art/' + founder.id + '.' + (founder.ext || 'png'), name: founder.name, ticker: founder.ticker, description: founder.description }), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' }));
+    }
     if (pathname === '/api/art/config') {
       return send(res, 200, JSON.stringify(art.info()), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' }));
     }
@@ -366,7 +371,16 @@ if (require.main === module) {
       try { fs.mkdirSync(dataDir, { recursive: true }); fs.writeFileSync(f, verifySecret, { mode: 0o600 }); } catch (err) { console.error('Could not save the verify secret: ' + (err && err.message)); }
     }
   }
-  const server = createApp({ art, launcher, launches, verifier: createVerifier({ secret: verifySecret || undefined }) });
+  // The founder coin: a ready-made picture (founder/logo.png) that only FOUNDER_WALLET can launch.
+  let founder = null;
+  const founderWallet = env('FOUNDER_WALLET');
+  const founderFile = path.join(__dirname, 'founder', 'logo.png');
+  if (founderWallet && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(founderWallet) && fs.existsSync(founderFile)) {
+    const text = { name: env('FOUNDER_NAME') || 'HatchPad', ticker: (env('FOUNDER_SYMBOL') || 'HATCH').toUpperCase(), description: env('FOUNDER_DESCRIPTION') || 'The first coin hatched on HatchPad.' };
+    const id = art.seed(fs.readFileSync(founderFile), text);
+    if (id) founder = Object.assign({ id, ext: 'png', wallet: founderWallet }, text);
+  }
+  const server = createApp({ art, launcher, launches, founder, verifier: createVerifier({ secret: verifySecret || undefined }) });
   server.listen(PORT, '0.0.0.0', () => {
     console.log('HatchPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio OFF: ' + art.reason + '; provider ' + art.provider + ')') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
       (launcher.info().enabled ? ' (' + cluster + ' launch on)' : ' (' + cluster + ' launch off: no matching presets file in devnet/)') + (launchesFile ? ' (launch list saved in ' + launchesFile + ')' : ' (launch list in memory only)'));

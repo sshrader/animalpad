@@ -493,3 +493,18 @@ test('a first buy stays one transaction when the SDK returns the swap separately
   assert.equal(r.status, 200);
   assert.equal(r.body.transaction, Buffer.from('FIRST-BUY-TX').toString('base64'));
 });
+
+test('the founder picture can only be launched by the founder wallet', async () => {
+  const OTHER = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+  const founder = { id: 'f'.repeat(16), wallet: CREATOR };
+  const fctx = Object.assign({}, ctx, { founder, hasArt: () => true });
+  const l = createLauncher({ presets: PRESETS, load: fakeLoad([]), logger: quiet, maxPerMinute: 1000 });
+  const denied = await l.prepare(Object.assign({}, good, { creator: OTHER, art: founder.id }), fctx);
+  assert.equal(denied.status, 403);
+  assert.equal(denied.body.error, 'founder_only');
+  const ok = await l.prepare(Object.assign({}, good, { creator: CREATOR, art: founder.id }), fctx);
+  assert.equal(ok.status, 200);
+  // A different picture is unaffected.
+  const plain = await l.prepare(Object.assign({}, good, { creator: OTHER, art: 'a'.repeat(16) }), fctx);
+  assert.equal(plain.status, 200);
+});
