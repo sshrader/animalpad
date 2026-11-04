@@ -57,3 +57,7 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 - IPFS storage for pictures (they are on the volume for now).
 - Migrating a full curve from the page.
 - Anything needed for mainnet: a security review, real curve numbers, self-hosting the wallet library, and removing the devnet-only no-minimum buy for the buy that fills the curve.
+
+## Coin pages
+
+Each launch has a page at `/coin/<pool address>` with its details, a mood badge that follows how full the curve is (sleepy, awake, excited, ready, graduated) and a chat with the mascot. Chat uses the same text model as naming. It is limited to 20 messages per visitor per hour and 1000 a day in total (`chatPerIpPerHour` and `chatDailyCap` in `art.js`). The mascot is told not to give financial advice, replies are stripped of links, and the character is always read from the coin, never from the request.

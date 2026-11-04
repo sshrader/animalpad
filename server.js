@@ -93,6 +93,20 @@ function createApp(opts) {
       return;
     }
 
+    // Chat with a coin's mascot. The character is looked up from the coin itself, never taken from the request.
+    if (req.method === 'POST' && pathname === '/api/coin/chat') {
+      const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store', Connection: 'close' });
+      if (!launches) return send(res, 404, JSON.stringify({ error: 'not_found' }), noStore);
+      readJson(req, 4096).then(async body => {
+        if (!body || typeof body.pool !== 'string') return send(res, 400, JSON.stringify({ error: 'bad_request' }), noStore);
+        const d = await launches.detail(body.pool);
+        if (d.status !== 200) return send(res, d.status === 400 ? 400 : 404, JSON.stringify({ error: d.status === 400 ? 'bad_request' : 'not_found' }), noStore);
+        const r = await art.chat({ name: d.body.name, description: d.body.description, mood: d.body.mood.label, message: body.message, history: body.history }, { ip: clientIp(req) });
+        return send(res, r.status, JSON.stringify(r.body), noStore);
+      }).catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
+      return;
+    }
+
     const POSTS = { '/api/launch/prepare': 'prepare', '/api/launch/buy': 'buy', '/api/launch/claim': 'claim' };
     if (req.method === 'POST' && Object.prototype.hasOwnProperty.call(POSTS, pathname)) {
       const action = POSTS[pathname];

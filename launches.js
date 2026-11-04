@@ -116,6 +116,15 @@ function createLaunches(opts) {
     return running;
   }
 
+  // How the mascot feels, from how full its curve is.
+  function moodFor(r) {
+    if (r.migrated) return { key: 'graduated', label: 'Graduated' };
+    if (r.curveFull || r.progress >= 1) return { key: 'ready', label: 'Ready to graduate' };
+    if (r.progress >= 0.75) return { key: 'excited', label: 'Excited' };
+    if (r.progress >= 0.25) return { key: 'awake', label: 'Awake' };
+    return { key: 'sleepy', label: 'Sleepy' };
+  }
+
   // One launch for its own page: the same facts as the list, plus the description and links.
   async function detail(pool) {
     if (!B58.test(pool || '')) return { status: 400, body: { error: 'bad_pool' } };
@@ -131,7 +140,8 @@ function createLaunches(opts) {
       links: rec && rec.links && typeof rec.links === 'object' ? rec.links : {},
       imageUrl: rec ? '/art/' + rec.id + '.' + (rec.ext === 'jpg' ? 'jpg' : 'png') : '',
       raisedSol: r.body.raisedSol, thresholdSol: r.body.thresholdSol, progress: r.body.progress,
-      migrated: r.body.migrated, curveFull: r.body.curveFull
+      migrated: r.body.migrated, curveFull: r.body.curveFull,
+      mood: moodFor(r.body)
     } };
   }
 

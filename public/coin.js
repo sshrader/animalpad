@@ -60,6 +60,12 @@
     const body = add(grid, 'div', undefined, 'cp-body');
     const h = add(body, 'h1', c.name + ' ');
     add(h, 'span', '$' + c.symbol, 'sym');
+    const mood = c.mood && /^[a-z]{3,12}$/.test(c.mood.key) ? c.mood : null;
+    if (mood) {
+      const m = add(body, 'span', mood.label, 'mood');
+      m.dataset.mood = mood.key;
+      const pic = grid.querySelector('.pic'); if (pic) pic.dataset.mood = mood.key;
+    }
     if (c.description) add(body, 'p', c.description, 'cp-desc');
 
     const pct = Math.round(Math.max(0, Math.min(1, Number(c.progress) || 0)) * 100);
@@ -84,6 +90,7 @@
 
     const f = add(body, 'dl', undefined, 'facts');
     function fact(label, node) { add(f, 'dt', label); const dd = add(f, 'dd'); if (typeof node === 'string') dd.textContent = node; else dd.appendChild(node); }
+    startChat(box, c);
     fact('Launched', when(c.createdAt));
     const ex = a => 'https://explorer.solana.com/address/' + encodeURIComponent(a) + '?cluster=devnet';
     [['Token address', c.mint], ['Pool address', c.pool], ['Creator wallet', c.creator]].forEach(x => {
@@ -91,6 +98,40 @@
       const s = document.createElement('span');
       link(s, ex(x[1]), x[1]);
       fact(x[0], s);
+    });
+  }
+
+  // Talk to the mascot. Each reply comes from the server; nothing typed here is ever rendered as HTML.
+  function startChat(parent, c) {
+    const wrap = add(parent, 'div', undefined, 'chat');
+    add(wrap, 'h2', 'Talk to ' + c.name);
+    const log = add(wrap, 'div', undefined, 'chat-log');
+    log.setAttribute('aria-live', 'polite');
+    const row = add(wrap, 'form', undefined, 'chat-row');
+    const input = add(row, 'input');
+    input.type = 'text'; input.maxLength = 200; input.placeholder = 'Say hi to ' + c.name;
+    input.setAttribute('aria-label', 'Message to ' + c.name);
+    const send = add(row, 'button', 'Send', 'btn go'); send.type = 'submit';
+    add(wrap, 'p', 'An AI cartoon animal. It does not give advice and can say silly things.', 'hint');
+    const history = [];
+    const say = (text, cls) => { add(log, 'p', text, cls); log.scrollTop = log.scrollHeight; };
+    const ERR = { rate_limited: 'Too many messages. Wait a bit and try again.', daily_limit: 'The mascots are resting for today.', art_unavailable: 'Chat is switched off on this site.' };
+    row.addEventListener('submit', e => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text || send.disabled) return;
+      input.value = ''; send.disabled = true;
+      say(text, 'me');
+      fetch('/api/coin/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pool: c.pool, message: text, history: history.slice(-6) }) })
+        .then(r => r.json().then(b => ({ ok: r.ok, body: b })))
+        .then(r => {
+          if (r.ok && r.body && typeof r.body.reply === 'string') {
+            say(r.body.reply, 'bot');
+            history.push({ role: 'user', content: text }, { role: 'assistant', content: r.body.reply });
+          } else say(ERR[r.body && r.body.error] || 'No answer right now. Try again in a moment.', 'bot');
+        })
+        .catch(() => say('No answer right now. Try again in a moment.', 'bot'))
+        .finally(() => { send.disabled = false; input.focus(); });
     });
   }
 
