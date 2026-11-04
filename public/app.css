@@ -24,7 +24,8 @@ body { margin: 0; background: var(--ground); color: var(--text); font: 400 16px/
 
 /* Top bar and the step rail */
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
-.brand { margin: 0; font: 800 1.5rem/1 var(--display); letter-spacing: 0; }
+.brand { margin: 0; display: flex; align-items: center; gap: 10px; font: 800 1.5rem/1 var(--display); letter-spacing: 0; }
+.brand img { border-radius: 8px; }
 .chip-net { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 13px; font-weight: 500; }
 .chip-net::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--pop); }
 .mode { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); color: var(--text); display: grid; place-items: center; padding: 0; }
@@ -76,7 +77,11 @@ html { scroll-behavior: smooth; }
 
 h1 { margin: 0; font: 700 clamp(2rem, 5.5vw, 3.2rem)/1.08 var(--display); letter-spacing: -0.025em; text-wrap: balance; max-width: 18ch; }
 .lede { margin: 0; color: var(--muted); max-width: 48ch; font-size: 1.1rem; }
-.hero { display: grid; gap: 14px; padding-top: 8px; }
+.hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px 24px; padding: 22px 0 8px; overflow: hidden; border-radius: 14px; }
+.hero-text { position: relative; display: grid; gap: 14px; min-width: 0; }
+.hero-curve { position: absolute; inset: auto 0 0 0; width: 100%; height: 70%; z-index: 0; }
+.hero-mascot { position: relative; width: clamp(150px, 26vw, 280px); height: auto; }
+@media (max-width: 560px) { .hero { grid-template-columns: 1fr; } .hero-mascot { display: none; } }
 
 /* Panels */
 .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 22px; padding: 26px; min-width: 0; }

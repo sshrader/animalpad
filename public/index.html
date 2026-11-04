@@ -9,12 +9,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500..800&family=Outfit:wght@400..700&display=swap">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta property="og:title" content="HatchPad">
+<meta property="og:description" content="Describe an animal. Hatch its coin.">
+<meta property="og:image" content="https://hatchpadsol.xyz/banner.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body data-step="1">
 <main class="wrap">
   <header class="top">
-    <p class="brand">HatchPad</p>
+    <p class="brand"><img src="/icon.svg" alt="" width="30" height="30">HatchPad</p>
     <nav class="nav" aria-label="Sections"><a href="#recent">Recent launches</a><a href="#how">How it works</a><a href="#about">About</a></nav>
     <div class="row">
       <span class="chip-net">Devnet · test coins only</span>
@@ -23,8 +28,12 @@
   </header>
 
   <div class="hero">
-    <h1>Describe an animal. Launch its coin.</h1>
-    <p class="lede">AI draws the mascot and names it. Keep it or toss it, then put it on a bonding curve with your wallet.</p>
+    <svg class="hero-curve" viewBox="0 0 1000 220" preserveAspectRatio="none" aria-hidden="true"><path d="M0 205 C260 200 520 190 700 150 C840 118 930 60 1000 0" fill="none" stroke="var(--line)" stroke-width="3" vector-effect="non-scaling-stroke"/><path d="M0 205 C260 200 520 190 700 150 C840 118 930 60 1000 0 L1000 220 L0 220 Z" fill="var(--soft)" opacity=".45"/></svg>
+    <div class="hero-text">
+      <h1>Describe an animal. Hatch its coin.</h1>
+      <p class="lede">AI draws the mascot and names it. Keep it or toss it, then put it on a bonding curve with your wallet.</p>
+    </div>
+    <img class="hero-mascot" src="/mascot.svg" alt="" width="220" height="220">
   </div>
 
   <section class="panel" id="recent" aria-labelledby="recent-h">

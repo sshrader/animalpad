@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -80 1120 1120">
+  <defs>
+    <clipPath id="loM"><polygon points="100,575 164,505 228,575 292,505 356,575 420,505 484,575 548,505 612,575 676,505 740,575 804,505 868,575 900,1000 100,1000"/></clipPath>
+    <clipPath id="upM"><polygon points="100,575 164,505 228,575 292,505 356,575 420,505 484,575 548,505 612,575 676,505 740,575 804,505 868,575 900,0 100,0"/></clipPath>
+    <radialGradient id="glowM" cx="50%" cy="46%" r="50%"><stop offset="0" stop-color="#2a2368"/><stop offset="1" stop-color="#14103a" stop-opacity="0"/></radialGradient>
+  </defs>
+  
+  <!-- hatchling -->
+  <g>
+    <ellipse cx="372" cy="372" rx="58" ry="92" transform="rotate(-22 372 372)" fill="#ff6aa0"/>
+    <ellipse cx="372" cy="380" rx="28" ry="56" transform="rotate(-22 372 380)" fill="#ffb3cf"/>
+    <ellipse cx="628" cy="372" rx="58" ry="92" transform="rotate(22 628 372)" fill="#ff6aa0"/>
+    <ellipse cx="628" cy="380" rx="28" ry="56" transform="rotate(22 628 380)" fill="#ffb3cf"/>
+    <circle cx="500" cy="500" r="168" fill="#ff6aa0"/>
+    <circle cx="440" cy="488" r="26" fill="#1c1547"/><circle cx="560" cy="488" r="26" fill="#1c1547"/>
+    <circle cx="450" cy="478" r="9" fill="#fff"/><circle cx="570" cy="478" r="9" fill="#fff"/>
+    <ellipse cx="402" cy="540" rx="24" ry="14" fill="#ff8fb7"/><ellipse cx="598" cy="540" rx="24" ry="14" fill="#ff8fb7"/>
+    <path d="M478 538 Q500 562 522 538" fill="none" stroke="#1c1547" stroke-width="9" stroke-linecap="round"/>
+  </g>
+  <!-- lower shell -->
+  <g clip-path="url(#loM)">
+    <path d="M500 215 C690 215 775 430 775 590 C775 765 655 850 500 850 C345 850 225 765 225 590 C225 430 310 215 500 215 Z" fill="#fff4d6"/>
+    <path d="M300 640 C310 740 390 800 500 806" fill="none" stroke="#f0dba6" stroke-width="30" stroke-linecap="round"/>
+    <circle cx="640" cy="700" r="20" fill="#f0dba6"/><circle cx="585" cy="770" r="12" fill="#f0dba6"/>
+  </g>
+  <!-- cap, lifted off -->
+  <g transform="translate(185 -190) rotate(30 500 520)">
+    <g clip-path="url(#upM)">
+      <path d="M500 215 C690 215 775 430 775 590 C775 765 655 850 500 850 C345 850 225 765 225 590 C225 430 310 215 500 215 Z" fill="#fff4d6"/>
+      <path d="M300 330 C320 280 380 250 440 245" fill="none" stroke="#f0dba6" stroke-width="26" stroke-linecap="round"/>
+      <circle cx="610" cy="360" r="20" fill="#f0dba6"/>
+    </g>
+  </g>
+  <!-- sparkles -->
+  <path d="M185 300 l14 -34 l14 34 l34 14 l-34 14 l-14 34 l-14 -34 l-34 -14 z" fill="#ffd23f"/>
+  <path d="M820 760 l9 -22 l9 22 l22 9 l-22 9 l-9 22 l-9 -22 l-22 -9 z" fill="#ffd23f"/></svg>
