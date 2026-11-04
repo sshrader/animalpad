@@ -63,7 +63,8 @@
     if (!p) { const e = new Error('no_wallet'); e.code = 'no_wallet'; throw e; }
     await loadWeb3();
     const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    const tx = window.solanaWeb3.Transaction.from(bytes);
+    // Versioned transactions carry the lookup table; a legacy one deserializes the same way.
+    const tx = window.solanaWeb3.VersionedTransaction.deserialize(bytes);
     const sent = await p.signAndSendTransaction(tx);
     return sent && sent.signature ? sent.signature : String(sent);
   }

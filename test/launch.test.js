@@ -39,7 +39,7 @@ test('the fee split is validated, and launching is off without a platform wallet
   assert.throws(() => createLauncher({ platformWallet: PLATFORM, platformSharePct: 80 }), /PLATFORM_SHARE_PCT/);
   assert.throws(() => createLauncher({ platformWallet: PLATFORM, platformSharePct: 2.5 }), /PLATFORM_SHARE_PCT/);
   const on = createLauncher({ platformWallet: PLATFORM });
-  assert.deepEqual(on.info(), { enabled: true, cluster: 'devnet', protocol: 'pump.fun', split: { creatorPct: 80, platformPct: 20 } });
+  assert.deepEqual(on.info(), { enabled: true, cluster: 'devnet', protocol: 'pump.fun', atomic: false, split: { creatorPct: 80, platformPct: 20 } });
   assert.equal(createLauncher({ platformWallet: PLATFORM, platformSharePct: '30' }).info().split.creatorPct, 70);
   assert.equal(createLauncher({}).info().enabled, false);
 });
@@ -167,6 +167,63 @@ test('step: a split of 100% when the creator is the platform wallet, and nobody 
   assert.equal((await launcher.step({ mint: 'x', creator: CREATOR }, ctx)).body.error, 'bad_mint');
   assert.equal((await launcher.step({ mint, creator: 'x' }, ctx)).body.error, 'bad_creator');
   assert.equal((await launcher.step({ mint, creator: CREATOR, firstBuySol: 99 }, ctx)).body.error, 'bad_amount');
+});
+
+const TABLE = key();
+const frozenTable = { key: TABLE, state: { authority: null, addresses: [] } };
+
+test('with a frozen lookup table the coin and the first buy are ONE transaction; a split follows', async () => {
+  const st = {};
+  st.tables = new Map([[TABLE, frozenTable]]);
+  const { launcher } = make({ lookupTable: TABLE }, st);
+  assert.equal(launcher.info().atomic, true);
+  const r = await launcher.prepare(Object.assign({ firstBuySol: 0.5 }, good), ctx);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.atomic, true);
+  const t = tx(r.body.transaction);
+  assert.equal(t.v0, true);
+  assert.equal(t.tables, 1);
+  assert.deepEqual(t.signers, [r.body.mint]);
+  const pumpIx = t.instructions.filter(i => i.program === pump.PUMP);
+  assert.equal(pumpIx.length, 2, 'create_v2 and the buy in the same transaction');
+  assert.equal(pumpIx[0].keys, 16);
+  assert.equal(pumpIx[1].keys, 17);
+  // no buy asked for: just the create
+  const bare = tx((await launcher.prepare(good, ctx)).body.transaction);
+  assert.equal(bare.instructions.filter(i => i.program === pump.PUMP).length, 1);
+  // after the coin exists: split (with a sweep if fees waited on the curve), then done, with no separate buy step
+  const mint = r.body.mint;
+  st.putCurve(mint, { creator: CREATOR, creator_fee: 4000000n });
+  const split = await launcher.step({ mint, creator: CREATOR, firstBuySol: 0.5 }, ctx);
+  assert.equal(split.body.step, 'split');
+  const sp = tx(split.body.transaction);
+  assert.equal(sp.v0, true);
+  assert.equal(sp.instructions.filter(i => i.program === pump.PUMP).length, 1, 'the sweep');
+  assert.equal(sp.instructions.filter(i => i.program === pump.PUMP_FEES).length, 2);
+  st.putCurve(mint, { creator: st.B.sharingConfigOf(mint).toBase58() });
+  assert.equal((await launcher.step({ mint, creator: CREATOR, firstBuySol: 0.5 }, ctx)).body.step, 'done');
+});
+
+test('a lookup table that is missing or not frozen is not used, and launches fall back to separate steps', async () => {
+  const st = {};
+  st.tables = new Map([[TABLE, { key: TABLE, state: { authority: key(), addresses: [] } }]]);
+  const errors = [];
+  const { launcher } = make({ lookupTable: TABLE, logger: { log() {}, error: m => errors.push(m) } }, st);
+  const r = await launcher.prepare(Object.assign({ firstBuySol: 0.5 }, good), ctx);
+  assert.equal(r.body.atomic, false);
+  assert.equal(tx(r.body.transaction).v0, undefined);
+  assert.equal(tx(r.body.transaction).instructions.filter(i => i.program === pump.PUMP).length, 1);
+  assert.ok(errors.some(e => /not frozen/.test(e)));
+  const gone = make({ lookupTable: key() }).launcher;
+  assert.equal((await gone.prepare(Object.assign({ firstBuySol: 0.5 }, good), ctx)).body.atomic, false);
+});
+
+test('lookupAddresses lists what every launch shares, and leaves out per-wallet and per-coin addresses', async () => {
+  const { launcher } = make();
+  const list = await launcher.lookupAddresses();
+  assert.ok(list.includes(pump.PUMP) && list.includes(pump.PUMP_FEES) && list.includes(pump.TOKEN_2022));
+  assert.ok(list.length > 15 && list.length < 80, String(list.length));
+  assert.equal(new Set(list).size, list.length);
 });
 
 test('status reports pending, confirmed and failed, and rejects junk signatures', async () => {
@@ -324,7 +381,7 @@ test('server: launch routes work, and POST is allowed nowhere else', async () =>
   const { launcher, st } = make();
   await withServer({ feed, launcher }, async base => {
     const cfg = await (await fetch(base + '/api/launch/config')).json();
-    assert.deepEqual(cfg, { enabled: true, cluster: 'devnet', protocol: 'pump.fun', split: { creatorPct: 80, platformPct: 20 } });
+    assert.deepEqual(cfg, { enabled: true, cluster: 'devnet', protocol: 'pump.fun', atomic: false, split: { creatorPct: 80, platformPct: 20 } });
     const post = (p, body) => fetch(base + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
     const ok = await post('/api/launch/prepare', JSON.stringify(good));
     assert.equal(ok.status, 200);

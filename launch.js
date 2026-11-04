@@ -66,9 +66,13 @@ function createLauncher(opts) {
   const platformPct = o.platformSharePct === undefined || o.platformSharePct === '' ? 20 : Number(o.platformSharePct);
   if (!Number.isInteger(platformPct) || platformPct < 1 || platformPct > 50) throw new Error('PLATFORM_SHARE_PCT must be a whole number from 1 to 50.');
   const enabled = Boolean(platformWallet);
+  // A shared address lookup table (made once by devnet/12-make-lookup-table.mjs) lets the coin's creation and the
+  // creator's first buy fit in ONE transaction, so nobody can buy in between. Without it a launch is up to three steps.
+  const lookupTable = typeof o.lookupTable === 'string' && B58_RE.test(o.lookupTable) ? o.lookupTable : '';
+  let tableCache = null;
 
   function info() {
-    const out = { enabled, cluster, protocol: 'pump.fun' };
+    const out = { enabled, cluster, protocol: 'pump.fun', atomic: Boolean(lookupTable) };
     if (enabled) out.split = { creatorPct: 100 - platformPct, platformPct };
     return out;
   }
@@ -103,7 +107,36 @@ function createLauncher(opts) {
     return ixs;
   }
 
-  async function toTx(c, ixs, payer, signers) {
+  // The lookup table, if one is set and safe to use: it must exist and be frozen (nobody can change its addresses).
+  async function getTable(c) {
+    if (!lookupTable) return null;
+    const now = (o.now || Date.now)();
+    if (tableCache && now - tableCache.at < 300000) return tableCache.value;
+    let value = null;
+    try {
+      const r = await c.connection.getAddressLookupTable(new c.web3.PublicKey(lookupTable));
+      const t = r && r.value;
+      if (t && t.state && !t.state.authority) value = t;
+      else logger.error('Lookup table ' + lookupTable + ' is missing or not frozen, so launches fall back to separate steps.');
+    } catch (err) {
+      logger.error('Lookup table could not be read: ' + (err && err.message ? err.message : 'unknown error'));
+    }
+    tableCache = { at: now, value };
+    return value;
+  }
+
+  async function toV0(c, ixs, payer, table, signers) {
+    const latest = await c.connection.getLatestBlockhash('confirmed');
+    const msg = new c.web3.TransactionMessage({ payerKey: payer, recentBlockhash: latest.blockhash, instructions: ixs }).compileToV0Message([table]);
+    const vtx = new c.web3.VersionedTransaction(msg);
+    if (signers && signers.length) vtx.sign(signers);
+    const raw = Buffer.from(vtx.serialize());
+    if (raw.length > 1232) throw new Error('transaction too large: ' + raw.length + ' bytes');
+    return raw.toString('base64');
+  }
+
+  async function toTx(c, ixs, payer, signers, table) {
+    if (table) return toV0(c, ixs, payer, table, signers);
     const tx = new c.web3.Transaction();
     ixs.forEach(ix => tx.add(ix));
     const latest = await c.connection.getLatestBlockhash('confirmed');
@@ -152,9 +185,21 @@ function createLauncher(opts) {
       const creatorPk = new c.web3.PublicKey(b.creator);
       const mintKp = c.web3.Keypair.generate();
       const ix = c.B.createCoin({ mint: mintKp.publicKey, user: creatorPk, name, symbol, uri });
-      const transaction = await toTx(c, budget(c, CU.create).concat([ix]), creatorPk, [mintKp]);
       const mint = mintKp.publicKey.toBase58();
-      return { status: 200, body: { transaction, mint, pool: mint, curve: c.B.bondingCurveOf(mintKp.publicKey).toBase58(), firstBuySol, split: info().split, cluster } };
+      const table = await getTable(c);
+      const atomic = Boolean(table);
+      let ixs = budget(c, CU.create).concat([ix]);
+      if (atomic && firstBuySol > 0) {
+        // The coin does not exist yet, so the buy is priced against a fresh curve from pump.fun's global settings.
+        const glob = await readGlobal(c);
+        const fresh = {
+          virtual_token_reserves: glob.initial_virtual_token_reserves, virtual_quote_reserves: glob.initial_virtual_sol_reserves,
+          real_token_reserves: glob.initial_real_token_reserves
+        };
+        ixs = budget(c, CU.create + CU.buy).concat([ix], buyInstructions(c, creatorPk, mint, fresh, firstBuySol, 1000, glob));
+      }
+      const transaction = await toTx(c, ixs, creatorPk, [mintKp], table);
+      return { status: 200, body: { transaction, mint, pool: mint, curve: c.B.bondingCurveOf(mintKp.publicKey).toBase58(), firstBuySol, atomic, split: info().split, cluster } };
     } catch (err) {
       logger.error('Launch prepare failed: ' + (err && err.stack ? err.stack : 'unknown error'));
       return { status: 502, body: { error: 'prepare_failed' } };
@@ -177,12 +222,17 @@ function createLauncher(opts) {
       if (!curve) return { status: 200, body: { step: 'waiting' } };
       const creatorPk = new c.web3.PublicKey(b.creator);
       const sharing = c.B.sharingConfigOf(b.mint).toBase58();
+      const table = await getTable(c);
       if (curve.creator === b.creator) {
-        const ixs = [c.B.createSharingConfig({ mint: b.mint, payer: creatorPk }), c.B.setShares({ mint: b.mint, authority: creatorPk, shareholders: shares(b.creator) })];
-        return { status: 200, body: { step: 'split', transaction: await toTx(c, budget(c, CU.split).concat(ixs), creatorPk), cluster } };
+        // Fees that have built up on the curve must be swept before the creator is swapped for the split.
+        const ixs = [];
+        if (Number(curve.creator_fee || 0n) > 0) ixs.push(c.B.sweepCreatorFee({ payer: creatorPk, mint: b.mint, creator: creatorPk }));
+        ixs.push(c.B.createSharingConfig({ mint: b.mint, payer: creatorPk }), c.B.setShares({ mint: b.mint, authority: creatorPk, shareholders: shares(b.creator), currentShareholders: [creatorPk] }));
+        return { status: 200, body: { step: 'split', transaction: await toTx(c, budget(c, CU.split).concat(ixs), creatorPk, null, table), cluster } };
       }
       if (curve.creator !== sharing) return { status: 403, body: { error: 'not_creator' } };
-      if (firstBuySol > 0) {
+      // Without a lookup table the first buy is its own, last step. With one it was part of the launch transaction.
+      if (firstBuySol > 0 && !table) {
         let held = 0n;
         try {
           const bal = await c.connection.getTokenAccountBalance(c.B.ata(creatorPk, b.mint, pump.TOKEN_2022));
@@ -200,17 +250,42 @@ function createLauncher(opts) {
     }
   }
 
-  async function buildBuy(c, buyerPk, mint, curve, sol, slippageBps) {
-    const glob = await readGlobal(c);
+  // The create-ATA and buy instructions for spending `sol`, with a minimum worked out from the curve.
+  function buyInstructions(c, buyerPk, mint, curve, sol, slippageBps, glob) {
     const lamports = BigInt(Math.floor(sol * 1e9));
     const min = pump.minTokensForBuy(curve, lamports, slippageBps, pump.feeGuessBps(glob));
     if (min <= 0n) throw new Error('quote came out as zero');
     const recipients = Array.isArray(glob.buyback_fee_recipients) && glob.buyback_fee_recipients.length ? glob.buyback_fee_recipients : pump.BUYBACK_RECIPIENTS;
-    const ixs = [
+    return [
       c.B.createAtaIdempotent(buyerPk, buyerPk, mint, pump.TOKEN_2022),
       c.B.buyExactIn({ user: buyerPk, mint, lamports, minTokensOut: min, buybackRecipient: recipients[0] })
     ];
-    return toTx(c, budget(c, CU.buy).concat(ixs), buyerPk);
+  }
+
+  async function buildBuy(c, buyerPk, mint, curve, sol, slippageBps) {
+    const glob = await readGlobal(c);
+    return toTx(c, budget(c, CU.buy).concat(buyInstructions(c, buyerPk, mint, curve, sol, slippageBps, glob)), buyerPk);
+  }
+
+  // Every address the launch transactions share between launches: found by building them for two throwaway coins
+  // and wallets and keeping what matches. This is what goes in the lookup table.
+  async function lookupAddresses() {
+    const c = await chain();
+    const glob = await readGlobal(c);
+    const fresh = { virtual_token_reserves: glob.initial_virtual_token_reserves, virtual_quote_reserves: glob.initial_virtual_sol_reserves, real_token_reserves: glob.initial_real_token_reserves };
+    const one = () => {
+      const user = c.web3.Keypair.generate().publicKey, mint = c.web3.Keypair.generate().publicKey;
+      const ixs = [c.B.createCoin({ mint, user, name: 'Check', symbol: 'CHK', uri: 'https://example.com/meta.json' })]
+        .concat(buyInstructions(c, user, mint.toBase58(), fresh, 0.1, 1000, glob))
+        .concat([c.B.sweepCreatorFee({ payer: user, mint, creator: user }), c.B.createSharingConfig({ mint, payer: user }),
+          c.B.setShares({ mint, authority: user, shareholders: shares(user.toBase58()), currentShareholders: [user] })]);
+      const keys = new Set();
+      ixs.forEach(ix => { keys.add(ix.programId.toBase58()); ix.keys.forEach(k => keys.add(k.pubkey.toBase58())); });
+      budget(c, 1).forEach(ix => keys.add(ix.programId.toBase58()));
+      return keys;
+    };
+    const a = one(), b = one();
+    return Array.from(a).filter(k => b.has(k));
   }
 
   async function status(sig, ctx) {
@@ -376,7 +451,7 @@ function createLauncher(opts) {
     }
   }
 
-  return { info, prepare, step, status, pool, inspect, buy, fees, distribute, partnerFees };
+  return { info, lookupAddresses, prepare, step, status, pool, inspect, buy, fees, distribute, partnerFees };
 }
 
 // Metadata for the token, read by wallets and explorers. Built from the link and the stored animal, so the

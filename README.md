@@ -9,7 +9,7 @@ Describe an animal. AI draws the logo and suggests a name, ticker and descriptio
 1. **Describe:** the page sends a short description to the server. The server asks an AI provider for the image and for the name, ticker and description, so the API key never reaches the browser. The provider is Cloudflare Workers AI (`IMAGE_PROVIDER=cloudflare`) or OpenAI (the default).
 2. **Accept or reject:** you can edit the name and ticker. Reject draws a new animal from the same description.
 3. **Add links (optional):** a creator can add their own website, X and Telegram. They are checked (websites must be https; X and Telegram take a handle or link), saved with the picture, and published in the token's metadata as `external_url`, `website`, `twitter`, `telegram` and `extensions`. They are locked once a launch is started for that picture, so a changed set is refused with a clear message and the public picture address can't be used to edit them.
-4. **Launch:** Phantom signs up to three transactions the server prepares one at a time: (1) `create_v2` creates the coin, (2) the coin's creator fees are split between the launcher and HatchPad (pump.fun creator fee sharing), (3) the launcher's optional first buy. The token's metadata link points back at this site, so wallets and explorers show the picture. If a step is declined or the tab closes, pressing Launch again continues from what is on-chain.
+4. **Launch:** Phantom signs the transactions the server prepares one at a time. With a lookup table: (1) `create_v2` plus the launcher's optional first buy in one transaction, (2) the coin's creator fees are split between the launcher and HatchPad (pump.fun creator fee sharing). Without one: create, then split, then the first buy. The token's metadata link points back at this site, so wallets and explorers show the picture. If a step is declined or the tab closes, pressing Launch again continues from what is on-chain.
 5. **Trade and send out fees:** paste a coin address (CA) to see how full the curve is and buy. Anyone can press Send out fees on a coin page; the money goes to the wallets in the coin's fee split.
 
 ## Run it
@@ -40,6 +40,7 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 | `LAUNCH_CLUSTER` | `devnet` (default) or `mainnet-beta`. |
 | `PLATFORM_FEE_WALLET` | Public address that receives HatchPad's share of each coin's creator fees. Required for launching. Use a fresh wallet or a Ledger. |
 | `PLATFORM_SHARE_PCT` | HatchPad's share of the creator fees, a whole number from 1 to 50. Default 20 (the launcher keeps 80). It is written on-chain at launch and cannot be changed for that coin afterwards. |
+| `LAUNCH_LOOKUP_TABLE` | Address of the frozen lookup table made by `devnet/12-make-lookup-table.mjs`. With it, creating the coin and the creator's first buy are one transaction, so nobody can buy first. Without it (or if the table is missing or not frozen) launches use separate steps. |
 | `PRIORITY_FEE_MICROLAMPORTS` | Priority fee per compute unit added to transactions. Default 50000 on mainnet, 0 on devnet. |
 | `MAINNET_ENABLED` | Must be `yes` for `LAUNCH_CLUSTER=mainnet-beta`. Without it the server refuses to start. |
 | `FOUNDER_WALLET` | Public address of the wallet allowed to launch the founder coin (the HatchPad logo, `founder/logo.png`, no AI). Open `/?founder=1` to stage it. Nobody else can launch it. Optional `FOUNDER_NAME` (default HatchPad), `FOUNDER_SYMBOL` (HATCH), `FOUNDER_DESCRIPTION`. |
@@ -83,7 +84,7 @@ Each launch has a page at `/coin/<pool address>` with its details, a mood badge 
 
 ## Buy at launch
 
-The launch panel has an optional first buy (0.01 to 5 SOL). It is the last of the launch steps, right after the coin and its fee split exist. It is a separate transaction (pump.fun's instructions do not fit in one), so a very fast bot could buy first. The coin page shows how much the creator bought.
+The launch panel has an optional first buy (0.01 to 5 SOL). Create plus buy is too big for one normal transaction, so with `LAUNCH_LOOKUP_TABLE` set they go in one version 0 transaction that uses a shared, frozen address lookup table, and nobody can buy first (the approach Sparkpad uses, with one shared table instead of one per wallet). Without it the buy is the last step, a separate transaction a very fast bot could beat. The coin page shows how much the creator bought.
 
 ## Website verification
 
@@ -103,7 +104,14 @@ Real money. Read the go-live list with your lawyer and security reviewer first. 
    CLUSTER=mainnet-beta MAINNET_OK=yes RPC_URL=<mainnet rpc> node 11-check-pump.mjs <your wallet> <mint of any live pump.fun coin>
    ```
    Both lines should say PASS. The fee-split step can only be proven by a real launch, so do one on devnet first if pump.fun's program is there, or a first mainnet launch with a small first buy.
-3. In Railway set `LAUNCH_CLUSTER=mainnet-beta`, `MAINNET_ENABLED=yes`, `LAUNCH_RPC_URL=<mainnet rpc>` and `PLATFORM_FEE_WALLET=<public address>`.
-4. Open `/admin` with the platform fee wallet to send out fees.
+3. Make the shared lookup table once (about 0.01 SOL of rent, from the payer file):
+   ```
+   cd devnet
+   $env:CLUSTER="mainnet-beta"; $env:MAINNET_OK="yes"; $env:RPC_URL="<mainnet rpc>"; $env:PAYER_KEYPAIR="<path>"
+   node 12-make-lookup-table.mjs <platform fee wallet>
+   ```
+   It prints an address and freezes the table so nobody can change it. Use it as `LAUNCH_LOOKUP_TABLE`.
+4. In Railway set `LAUNCH_CLUSTER=mainnet-beta`, `MAINNET_ENABLED=yes`, `LAUNCH_RPC_URL=<mainnet rpc>` `PLATFORM_FEE_WALLET=<public address>` and `LAUNCH_LOOKUP_TABLE=<address>`.
+5. Open `/admin` with the platform fee wallet to send out fees.
 
 On mainnet a buy whose quote comes out as zero is refused, and the pages show real-money wording and mainnet explorer links.

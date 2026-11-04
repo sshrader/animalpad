@@ -45,6 +45,7 @@ function fakeLoad(state) {
   state.tokens = state.tokens || new Map();
   state.statuses = state.statuses || new Map();
   state.sent = state.sent || [];
+  state.tables = state.tables || new Map();
   class Keypair { static generate() { const publicKey = new PublicKey(crypto.randomBytes(32)); return { publicKey }; } }
   class Transaction {
     constructor() { this.instructions = []; this.signers = []; }
@@ -57,7 +58,23 @@ function fakeLoad(state) {
       }));
     }
   }
+  class TransactionMessage {
+    constructor(o) { this.o = o; }
+    compileToV0Message(tables) { return { o: this.o, tables }; }
+  }
+  class VersionedTransaction {
+    constructor(msg) { this.msg = msg; this.signers = []; }
+    sign(keys) { keys.forEach(k => this.signers.push(k.publicKey.toBase58())); }
+    serialize() {
+      const o = this.msg.o;
+      return Buffer.from(JSON.stringify({
+        v0: true, tables: this.msg.tables.length, feePayer: o.payerKey.toBase58(), blockhash: o.recentBlockhash, signers: this.signers,
+        instructions: o.instructions.map(i => ({ program: i.programId.toBase58(), keys: i.keys.length, data: i.data.toString('hex') }))
+      }));
+    }
+  }
   class Connection {
+    async getAddressLookupTable(pk) { const t = state.tables && state.tables.get(pk.toBase58()); return { value: t || null }; }
     async getAccountInfo(pk) { const a = state.accounts.get(pk.toBase58()); return a ? { data: a.data, lamports: a.lamports || 1000000, owner: new PublicKey(a.owner || pump.PUMP) } : null; }
     async getLatestBlockhash() { return { blockhash: 'BLOCKHASH' }; }
     async getSignatureStatuses(sigs) { return { value: sigs.map(s => state.statuses.get(s) || null) }; }
@@ -68,7 +85,7 @@ function fakeLoad(state) {
     setComputeUnitLimit: ({ units }) => new TransactionInstruction({ programId: new PublicKey('ComputeBudget111111111111111111111111111111'), keys: [], data: Buffer.from('limit' + units) }),
     setComputeUnitPrice: ({ microLamports }) => new TransactionInstruction({ programId: new PublicKey('ComputeBudget111111111111111111111111111111'), keys: [], data: Buffer.from('price' + microLamports) })
   };
-  const web3 = { PublicKey, Keypair, Transaction, Connection, TransactionInstruction, ComputeBudgetProgram };
+  const web3 = { PublicKey, Keypair, Transaction, Connection, TransactionInstruction, ComputeBudgetProgram, TransactionMessage, VersionedTransaction };
   const B = pump.createBuilder(web3);
   // Helpers for tests
   state.web3 = web3; state.B = B;

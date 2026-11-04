@@ -73,7 +73,7 @@
   // so it can be picked up again if a step is declined or the tab is closed.
   async function runSteps() {
     const data = pending.data, firstBuy = pending.firstBuy;
-    const total = firstBuy > 0 ? 3 : 2;
+    const total = pending.atomic || firstBuy <= 0 ? 2 : 3;
     let done = false;
     for (let round = 0, waits = 0; round < 6 && !done; round++) {
       const sres = await fetch('/api/launch/step', {
@@ -123,8 +123,8 @@
         busy = false; render();
         return;
       }
-      const total = (firstBuy > 0 ? 3 : 2);
-      say('Step 1 of ' + total + ': approve creating the coin in your wallet…');
+      const total = data.atomic || firstBuy <= 0 ? 2 : 3;
+      say('Step 1 of ' + total + ': approve creating the coin' + (data.atomic && firstBuy > 0 ? ' and your first buy' : '') + ' in your wallet…');
       const signature = await W.signAndSend(data.transaction);
       showResult(data, signature);
       say('Sent. Waiting for the network to confirm…');
@@ -132,7 +132,7 @@
       if (state === 'failed') { say('The transaction failed on-chain. Check the transaction link for the reason. Nothing was created.', true); busy = false; render(); return; }
       if (state !== 'confirmed') { say('Not confirmed yet. Check the transaction link in a minute.', true); busy = false; render(); return; }
       document.dispatchEvent(new CustomEvent('animalpad:launched', { detail: { pool: data.pool } }));
-      pending = { data: data, firstBuy: firstBuy };
+      pending = { data: data, firstBuy: firstBuy, atomic: Boolean(data.atomic) };
       await runSteps();
     } catch (err) {
       const m = err && err.message ? String(err.message) : '';

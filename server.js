@@ -358,6 +358,7 @@ if (require.main === module) {
     allowMainnet: env('MAINNET_ENABLED') === 'yes',
     platformWallet: env('PLATFORM_FEE_WALLET'),
     platformSharePct: env('PLATFORM_SHARE_PCT') || undefined,
+    lookupTable: env('LAUNCH_LOOKUP_TABLE') || undefined,
     priorityMicroLamports: env('PRIORITY_FEE_MICROLAMPORTS') === '' ? undefined : Number(env('PRIORITY_FEE_MICROLAMPORTS')),
     rpcUrl: process.env.LAUNCH_RPC_URL || undefined
   });
