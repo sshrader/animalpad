@@ -45,7 +45,7 @@
     return Number.isFinite(d.getTime()) ? d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
   }
 
-  function render(c) {
+  function render(c, cfg) {
     document.title = c.name + ' · AnimalPad';
     box.textContent = '';
     const grid = add(box, 'div', undefined, 'coinpage');
@@ -81,16 +81,35 @@
       .map(k => [safeUrl(links[k[0]]), k[1]]).filter(k => k[0]);
     if (out.length) {
       const row = add(body, 'div', undefined, 'cp-links');
-      out.forEach(k => link(row, k[0], k[1]));
+      out.forEach(k => {
+        link(row, k[0], k[1]);
+        if (k[1] === 'Website' && c.siteVerified) add(row, 'span', 'Verified by the creator', 'verified');
+      });
     }
+    if (c.verifyCode && safeUrl((links.website || ''))) startVerify(body, c, links.website);
 
     const acts = add(body, 'div', undefined, 'cp-actions');
     const t = add(acts, 'a', 'Trade this coin', 'btn go');
     t.href = '/?pool=' + encodeURIComponent(c.pool) + '#trade';
+    const tw = add(acts, 'a', 'Share on X', 'btn');
+    tw.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(c.name + ' ($' + c.symbol + ') on AnimalPad, a devnet test coin') + '&url=' + encodeURIComponent(location.origin + '/coin/' + c.pool);
+    tw.target = '_blank'; tw.rel = 'noopener noreferrer';
+    // A Blink: a link that opens a buy for this coin in a Blink-aware viewer, with no need to visit this site.
+    const blink = 'https://dial.to/?action=' + encodeURIComponent('solana-action:' + location.origin + '/api/actions/trade/' + c.pool) + '&cluster=devnet';
+    const cp = add(acts, 'button', 'Copy buy link', 'btn'); cp.type = 'button';
+    cp.addEventListener('click', () => {
+      const done = () => { cp.textContent = 'Copied'; setTimeout(() => { cp.textContent = 'Copy buy link'; }, 2000); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(blink).then(done, () => { cp.textContent = 'Copy failed'; });
+      else cp.textContent = 'Copy not available';
+    });
 
     const f = add(body, 'dl', undefined, 'facts');
     function fact(label, node) { add(f, 'dt', label); const dd = add(f, 'dd'); if (typeof node === 'string') dd.textContent = node; else dd.appendChild(node); }
     startChat(box, c);
+    const terms = cfg && cfg.terms && cfg.terms.standard;
+    if (terms && Number.isFinite(terms.totalPct) && Number.isFinite(terms.creatorSharePct)) {
+      fact('Trading fee', terms.totalPct + '% of every trade. The creator earns ' + terms.creatorSharePct + '% of it.');
+    }
     fact('Launched', when(c.createdAt));
     const ex = a => 'https://explorer.solana.com/address/' + encodeURIComponent(a) + '?cluster=devnet';
     [['Token address', c.mint], ['Pool address', c.pool], ['Creator wallet', c.creator]].forEach(x => {
@@ -135,16 +154,44 @@
     });
   }
 
+  // The creator proves the website is theirs by putting this coin's code on it.
+  function startVerify(parent, c, website) {
+    const d = add(parent, 'details', undefined, 'verify');
+    add(d, 'summary', 'Is this your website? Verify it');
+    const b = add(d, 'div', undefined, 'verify-body');
+    let host = '';
+    try { host = new URL(website).origin; } catch (e) { return; }
+    add(b, 'p', 'Put this code on your website, then press Check. Either save it as a text file at ' + host + '/.well-known/animalpad-verify.txt, or add it anywhere on the page you linked (' + website + ').', 'hint');
+    const code = add(b, 'code', c.verifyCode, 'vcode');
+    const row = add(b, 'div', undefined, 'row');
+    const check = add(row, 'button', 'Check my website', 'btn'); check.type = 'button';
+    const msg = add(row, 'span', '', 'dl-status');
+    msg.setAttribute('role', 'status');
+    const WHY = { rate_limited: 'Wait a moment before checking again.', needs_https: 'The website link needs to start with https://.', no_website: 'This coin has no website.' };
+    check.addEventListener('click', () => {
+      check.disabled = true; msg.textContent = 'Checking…';
+      fetch('/api/coin/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pool: c.pool }) })
+        .then(r => r.json())
+        .then(r => {
+          if (r && r.verified === true) { msg.textContent = 'Verified. Reloading…'; setTimeout(() => location.reload(), 800); return; }
+          msg.textContent = (r && WHY[r.error]) || 'The code was not found on your site yet. Check that it is public, then try again.';
+          check.disabled = false;
+        })
+        .catch(() => { msg.textContent = 'Could not check right now. Try again.'; check.disabled = false; });
+    });
+  }
+
   function problem(text) {
     box.textContent = '';
     add(box, 'p', text, 'hint');
   }
 
   if (!B58.test(pool)) { problem('That is not a valid coin address.'); return; }
+  const getCfg = fetch('/api/launch/config', { headers: { Accept: 'application/json' } }).then(r => r.json()).catch(() => null);
   fetch('/api/launches/' + pool, { cache: 'no-store', headers: { Accept: 'application/json' } })
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
-    .then(r => {
-      if (r.status === 200) render(r.body);
+    .then(async r => {
+      if (r.status === 200) render(r.body, await getCfg);
       else if (r.status === 404) problem('No coin found here. It may not be on the chain yet. Try again in a few seconds.');
       else problem('Could not load this coin. Try again in a moment.');
     })

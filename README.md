@@ -33,6 +33,7 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 | `ART_DAILY_CAP` | Default 300 pictures a day in total. This caps your spend. |
 | `DATA_DIR` | Where the volume is mounted (for example `/data`). Pictures go in `<DATA_DIR>/art` and the launch list in `<DATA_DIR>/launches.json`. Defaults to `/data` when that folder exists, otherwise memory only. |
 | `ART_DIR` | Optional. Overrides just the pictures folder. |
+| `VERIFY_SECRET` | Optional. Secret behind the website-check codes. If unset and a volume exists, one is created in `<DATA_DIR>/verify-secret`. |
 | `LAUNCHES_FILE` | Optional. Overrides where the launch list is saved. |
 | `HIDE_POOLS` | Optional. Comma-separated pool addresses to hide from the public "Recently launched" list. |
 | `LAUNCH_RPC_URL` | Devnet RPC. Default the public one. |
@@ -61,3 +62,15 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 ## Coin pages
 
 Each launch has a page at `/coin/<pool address>` with its details, a mood badge that follows how full the curve is (sleepy, awake, excited, ready, graduated) and a chat with the mascot. Chat uses the same text model as naming. It is limited to 20 messages per visitor per hour and 1000 a day in total (`chatPerIpPerHour` and `chatDailyCap` in `art.js`). The mascot is told not to give financial advice, replies are stripped of links, and the character is always read from the coin, never from the request.
+
+## Share links (Solana Actions / Blinks)
+
+`GET /actions.json` and `/api/actions/trade/<pool>` follow the Solana Actions spec. A wallet or Blink viewer reads the coin, shows buttons for 0.05, 0.1 and 0.5 SOL plus a custom amount, and POSTs the buyer's wallet to get an unsigned buy that the wallet signs. The coin page has a "Copy buy link" button that wraps the action in a dial.to link on devnet. Responses carry the devnet chain id and open CORS headers. Showing a coin page link as an interactive card inside X needs the domain registered with a Blinks client, which is not done.
+
+## Buy at launch
+
+The launch panel has an optional first buy (0.01 to 5 SOL). After the launch confirms, the page runs the normal buy flow, which is a second wallet approval. It is a separate transaction, not part of the launch itself, so another buyer could get in between. A single atomic launch-and-buy needs the Meteora SDK's create-with-first-buy call, which has not been tested here.
+
+## Website verification
+
+A coin whose creator added a website shows a "Verify it" box with a code that belongs to that coin. The creator saves the code in `/.well-known/animalpad-verify.txt` on their site, or anywhere on the page they linked. `POST /api/coin/verify` then fetches those two addresses and, if it finds the code, saves that the site is verified. The fetch is locked down: https on port 443 only, names only (no IP addresses), public addresses only (checked at connect time), no redirects, 6 second timeout, 16 KB limit. Checks are limited to 10 per visitor per hour and one per coin every 20 seconds. This proves control of the website only. It does not verify X or Telegram.

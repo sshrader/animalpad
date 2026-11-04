@@ -162,3 +162,8 @@ details.trade[open] summary::before { transform: rotate(90deg); }
 .tbar { height: 10px; border-radius: 8px; background: var(--soft); border: 1px solid var(--line); overflow: hidden; }
 .tbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.4s; }
 .foot { margin: 0; font-size: 13px; color: var(--muted); max-width: 70ch; }
+
+.buyfirst { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.buyrow { display: flex; align-items: center; gap: 8px; font-weight: 400; color: var(--muted); }
+.buyrow input { width: 120px; }
+.buyfirst .hint { font-weight: 400; }

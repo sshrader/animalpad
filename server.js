@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const { createLauncher, metadataFor, cleanText } = require('./launch');
 const { createLaunches } = require('./launches');
+const { createActions } = require('./actions');
+const { createVerifier } = require('./verify');
 const { createArt, ID_RE, normalizeLinks, blockedWord } = require('./art');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -69,6 +71,18 @@ function createApp(opts) {
   const art = opts.art || createArt({});
   const launches = opts.launches || null;
   const launcher = opts.launcher || null;
+  const actions = createActions({ launches, launcher });
+  const verifier = opts.verifier || createVerifier({});
+  // Website checks fetch other people's sites, so they are limited per visitor and per coin.
+  const verifyHits = new Map();
+  const verifyAllowed = (key, max, windowMs) => {
+    const t = Date.now();
+    const recent = (verifyHits.get(key) || []).filter(x => t - x < windowMs);
+    if (recent.length >= max) { verifyHits.set(key, recent); return false; }
+    recent.push(t); verifyHits.set(key, recent);
+    if (verifyHits.size > 5000) for (const [k, v] of verifyHits) if (!v.some(x => t - x < 3600000)) verifyHits.delete(k);
+    return true;
+  };
 
   return http.createServer((req, res) => {
     let url;
@@ -89,6 +103,48 @@ function createApp(opts) {
       readJson(req, 1024).then(body => {
         if (!body) return send(res, 400, JSON.stringify({ error: 'bad_request' }), noStore);
         return art.generate(body, { ip: clientIp(req) }).then(r => send(res, r.status, JSON.stringify(r.body), noStore));
+      }).catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
+      return;
+    }
+
+    // Solana Actions (Blinks): wallets and viewers read /actions.json, then GET the coin's action and POST to buy.
+    if (pathname === '/actions.json' || pathname.startsWith('/api/actions/')) {
+      const H = actions.HEADERS;
+      if (req.method === 'OPTIONS') return send(res, 204, '', H);
+      if (pathname === '/actions.json') return send(res, 200, JSON.stringify(actions.rules()), H);
+      const am = /^\/api\/actions\/trade\/([1-9A-HJ-NP-Za-km-z]{32,44})$/.exec(pathname);
+      const fail = (st, message) => send(res, st, JSON.stringify({ message }), H);
+      if (!am) return fail(404, 'Not found.');
+      const base = baseUrlFor(req);
+      if (req.method === 'GET') {
+        actions.describe(am[1], base).then(r => send(res, r.status, JSON.stringify(r.body), H)).catch(() => fail(500, 'Something went wrong.'));
+        return;
+      }
+      if (req.method === 'POST') {
+        readJson(req, 2048).then(body => {
+          if (!body) return fail(400, 'Bad request.');
+          return actions.transact(am[1], url.searchParams.get('amount'), body, { ip: clientIp(req), baseUrl: base, hasArt: () => false })
+            .then(r => send(res, r.status, JSON.stringify(r.body), H));
+        }).catch(() => fail(500, 'Something went wrong.'));
+        return;
+      }
+      return fail(405, 'Method not allowed.');
+    }
+
+    // Check that the coin's website carries the coin's code, and remember it if so.
+    if (req.method === 'POST' && pathname === '/api/coin/verify') {
+      const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store', Connection: 'close' });
+      if (!launches) return send(res, 404, JSON.stringify({ error: 'not_found' }), noStore);
+      readJson(req, 1024).then(async body => {
+        if (!body || typeof body.pool !== 'string') return send(res, 400, JSON.stringify({ error: 'bad_request' }), noStore);
+        const d = await launches.detail(body.pool);
+        if (d.status !== 200) return send(res, d.status === 400 ? 400 : 404, JSON.stringify({ error: d.status === 400 ? 'bad_request' : 'not_found' }), noStore);
+        if (!verifyAllowed('ip:' + clientIp(req), 10, 3600000) || !verifyAllowed('pool:' + body.pool, 1, 20000)) {
+          return send(res, 429, JSON.stringify({ error: 'rate_limited' }), noStore);
+        }
+        const r = await verifier.check(d.body);
+        if (r.status === 200 && r.body.verified) launches.setSiteVerified(body.pool, d.body.links.website);
+        return send(res, r.status, JSON.stringify(r.body), noStore);
       }).catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
       return;
     }
@@ -185,7 +241,13 @@ function createApp(opts) {
     if (dm) {
       const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' });
       if (!launches) return send(res, 404, JSON.stringify({ error: 'not_found' }), noStore);
-      launches.detail(dm[1]).then(r => send(res, r.status, req.method === 'HEAD' ? '' : JSON.stringify(r.body), noStore))
+      launches.detail(dm[1]).then(r => {
+        // A website the creator has not yet proven gets the code to put on it.
+        if (r.status === 200 && r.body.links && r.body.links.website && !r.body.siteVerified && verifier.places(r.body.links.website).length) {
+          r.body.verifyCode = verifier.code(r.body.pool, r.body.creator);
+        }
+        send(res, r.status, req.method === 'HEAD' ? '' : JSON.stringify(r.body), noStore);
+      })
         .catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
       return;
     }
@@ -272,7 +334,17 @@ if (require.main === module) {
     artRecord: id => art.record(id),
     hidden: env('HIDE_POOLS').split(',').map(x => x.trim()).filter(Boolean)
   });
-  const server = createApp({ art, launcher, launches });
+  // The website-check code is derived from a secret. A volume keeps it the same across restarts.
+  let verifySecret = env('VERIFY_SECRET');
+  if (!verifySecret && dataDir) {
+    const f = path.join(dataDir, 'verify-secret');
+    try { verifySecret = fs.readFileSync(f, 'utf8').trim(); } catch (err) { /* first run */ }
+    if (!verifySecret) {
+      verifySecret = require('crypto').randomBytes(32).toString('hex');
+      try { fs.mkdirSync(dataDir, { recursive: true }); fs.writeFileSync(f, verifySecret, { mode: 0o600 }); } catch (err) { console.error('Could not save the verify secret: ' + (err && err.message)); }
+    }
+  }
+  const server = createApp({ art, launcher, launches, verifier: createVerifier({ secret: verifySecret || undefined }) });
   server.listen(PORT, '0.0.0.0', () => {
     console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio OFF: ' + art.reason + '; provider ' + art.provider + ')') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
       (launcher.info().enabled ? ' (devnet launch on)' : ' (devnet launch off: no devnet/presets.json)') + (launchesFile ? ' (launch list saved in ' + launchesFile + ')' : ' (launch list in memory only)'));

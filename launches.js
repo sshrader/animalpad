@@ -141,11 +141,21 @@ function createLaunches(opts) {
       imageUrl: rec ? '/art/' + rec.id + '.' + (rec.ext === 'jpg' ? 'jpg' : 'png') : '',
       raisedSol: r.body.raisedSol, thresholdSol: r.body.thresholdSol, progress: r.body.progress,
       migrated: r.body.migrated, curveFull: r.body.curveFull,
-      mood: moodFor(r.body)
+      mood: moodFor(r.body),
+      siteVerified: Boolean(e.siteVerified && rec && rec.links && e.siteVerified === rec.links.website)
     } };
   }
 
-  return { record, list, detail, size: () => entries.length };
+  // Remembers that the coin's website was proven to be the creator's. Stored with the address that was checked.
+  function setSiteVerified(pool, website) {
+    const e = entries.find(x => x.pool === pool);
+    if (!e || typeof website !== 'string' || !website) return false;
+    e.siteVerified = website;
+    save();
+    return true;
+  }
+
+  return { record, list, detail, setSiteVerified, size: () => entries.length };
 }
 
 module.exports = { createLaunches };

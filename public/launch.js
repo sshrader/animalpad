@@ -74,6 +74,13 @@
     busy = true; render();
     $('dl-result').hidden = true;
     try {
+      const buyText = $('l-buy').value.trim();
+      const firstBuy = buyText === '' ? 0 : Number(buyText);
+      if (!Number.isFinite(firstBuy) || firstBuy < 0 || (firstBuy > 0 && (firstBuy < 0.01 || firstBuy > 5))) {
+        say('Buy at launch must be left empty, or be from 0.01 to 5 SOL.', true);
+        busy = false; render();
+        return;
+      }
       const links = {};
       [['website', 'l-web'], ['twitter', 'l-x'], ['telegram', 'l-tg']].forEach(p => { const v = $(p[1]).value.trim(); if (v) links[p[0]] = v; });
       say('Preparing the transaction…');
@@ -95,7 +102,7 @@
       const state = await W.confirm(signature);
       if (state === 'confirmed') {
         say('Confirmed on devnet ✓ Your token is live. Trade it in the card below.');
-        document.dispatchEvent(new CustomEvent('animalpad:launched', { detail: { pool: data.pool } }));
+        document.dispatchEvent(new CustomEvent('animalpad:launched', { detail: { pool: data.pool, firstBuy: firstBuy } }));
       } else if (state === 'failed') {
         say('The transaction failed on-chain. Check the transaction link for the reason. Nothing was created.', true);
       } else {
