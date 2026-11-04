@@ -184,3 +184,80 @@ test('server: studio routes, picture serving and metadata with the picture', asy
     assert.equal((await fetch(base + '/api/art/generate', { method: 'POST', body: JSON.stringify({ animal: 'a heron' }) })).status, 503);
   });
 });
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+test('with a folder, pictures survive a restart; launched ones are kept and unlaunched ones expire', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'art-'));
+  let t = 1700000000000;
+  const f = fakeOpenAI();
+  const mk = () => createArt({ apiKey: 'k', fetchImpl: f.impl, logger: quiet, dir, now: () => t, perIpPerHour: 100, dailyCap: 100 });
+  const a = mk();
+  const r = await a.generate({ animal: 'a heron' }, {});
+  const id = r.body.id;
+  assert.ok(fs.existsSync(path.join(dir, id + '.png')) && fs.existsSync(path.join(dir, id + '.json')));
+  assert.equal(fs.readdirSync(dir).some(x => x.endsWith('.tmp')), false);
+
+  const b = mk(); // a fresh server reading the same folder
+  assert.ok(b.get(id).equals(PNG));
+  assert.equal(b.record(id).name, 'Sleepy Heron');
+  assert.equal(b.record(id).pinned, false);
+
+  assert.equal(b.pin(id), true);
+  assert.equal(b.pin('0'.repeat(16)), false);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, id + '.json'), 'utf8')).pinned, true);
+  assert.equal(mk().record(id).pinned, true);
+
+  // a second picture that is never launched
+  const png2 = Buffer.concat([PNG, Buffer.from('second')]);
+  const f2 = async (url, init) => /images/.test(url)
+    ? { ok: true, status: 200, json: async () => ({ data: [{ b64_json: png2.toString('base64') }] }) }
+    : f.impl(url, init);
+  const c = createArt({ apiKey: 'k', fetchImpl: f2, logger: quiet, dir, now: () => t, perIpPerHour: 100, dailyCap: 100 });
+  const id2 = (await c.generate({ animal: 'a frog' }, {})).body.id;
+  assert.notEqual(id2, id);
+  t += 86400000 + 1000;
+  const d = mk();
+  d.prune();
+  assert.equal(d.get(id2), null);
+  assert.equal(fs.existsSync(path.join(dir, id2 + '.png')), false);
+  assert.ok(d.get(id).equals(PNG), 'the launched picture is kept');
+});
+
+test('ids cannot reach other files, and a folder that cannot be used falls back to memory', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'art-'));
+  fs.writeFileSync(path.join(dir, 'secret.txt'), 'x');
+  const a = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: quiet, dir });
+  for (const bad of ['../secret', 'secret.txt', '..%2fsecret', '', null, 5, 'A'.repeat(16)]) assert.equal(a.record(bad), null);
+  // the folder path is a file, so it cannot be a folder
+  const logs = [];
+  const filePath = path.join(dir, 'secret.txt');
+  const m = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: { log() {}, error: x => logs.push(x) }, dir: filePath });
+  const r = await m.generate({ animal: 'a heron' }, {});
+  assert.equal(r.status, 200);
+  assert.ok(m.get(r.body.id));
+  assert.ok(logs.some(x => /not usable/.test(x)));
+});
+
+test('server: a launch pins its picture so it outlives the clean-up', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'art-'));
+  const art = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: quiet, dir });
+  const id = (await art.generate({ animal: 'a heron' }, {})).body.id;
+  class PublicKey { constructor(v) { this.v = v; } toBase58() { return this.v; } }
+  const load = async () => ({
+    sdk: { DynamicBondingCurveClient: class { constructor() { this.creator = { createPool: async () => ({ partialSign() {}, serialize() { return Buffer.from('TX'); } }) }; } }, deriveDbcPoolAddress: () => new PublicKey('PoolAddress11111111111111111111111111111111') },
+    web3: { PublicKey, Keypair: { generate: () => ({ publicKey: new PublicKey('Mint1111111111111111111111111111111111111111') }) }, Connection: class { async getLatestBlockhash() { return { blockhash: 'B' }; } } },
+    spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') }
+  });
+  const launcher = createLauncher({ presets: PRESETS, load, logger: quiet });
+  await withServer({ art, launcher }, async base => {
+    assert.equal(art.record(id).pinned, false);
+    const res = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ preset: 'standard', name: 'Sleepy Heron', symbol: 'SNOOZ', creator: CREATOR, art: id }) });
+    assert.equal(res.status, 200);
+    assert.equal(art.record(id).pinned, true);
+    const bad = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ preset: 'standard', name: 'X', symbol: 'X', creator: CREATOR, art: 'd'.repeat(16) }) });
+    assert.equal(bad.status, 400);
+  });
+});

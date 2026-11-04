@@ -27,6 +27,7 @@ Without a key the animal studio is hidden. Without `devnet/presets.json` launchi
 | `OPENAI_TEXT_MODEL` | Default `gpt-4o-mini`. |
 | `ART_PER_IP_PER_HOUR` | Default 6 pictures per address per hour. |
 | `ART_DAILY_CAP` | Default 300 pictures a day in total. This caps your spend. |
+| `ART_DIR` | Where pictures are saved. Defaults to `/data/art` when a `/data` volume exists, otherwise memory only. |
 | `LAUNCH_RPC_URL` | Devnet RPC. Default the public one. |
 | `PUBLIC_URL` | This site's address, if it can't be worked out from the request. |
 
@@ -35,7 +36,9 @@ Without a key the animal studio is hidden. Without `devnet/presets.json` launchi
 - Prompts are cleaned of control characters, capped at 120 characters, and checked against a short list of well-known characters, brands and people. The list is basic, not complete.
 - The image prompt asks for an original character, and the name step is told to avoid existing brands and tokens.
 - Generation is rate limited per address and per day, and every failure gives a generic error.
-- Pictures are kept in memory (the newest 60) and served at `/art/<id>.png`. **They are lost when the server restarts.** Before mainnet they must move to permanent storage such as IPFS.
+- Pictures are saved on the volume at `/data/art` (`<id>.png` and `<id>.json`). A picture used by a launch is kept for good. Animals that were generated but never launched are deleted after a day. With no volume, pictures live in memory only and are lost on restart, and the server says so at startup.
+- On Railway, add a volume to the service and mount it at `/data`. If the startup log says the art folder is not usable, the volume is probably not writable by the app's user.
+- This is fine for devnet. For mainnet, move pictures to content-addressed storage such as IPFS, so a token's picture does not depend on this server.
 
 ## Devnet scripts
 
@@ -43,6 +46,6 @@ Without a key the animal studio is hidden. Without `devnet/presets.json` launchi
 
 ## Not built yet
 
-- Permanent picture storage (IPFS).
+- IPFS storage for pictures (they are on the volume for now).
 - Migrating a full curve from the page.
 - Anything needed for mainnet: a security review, real curve numbers, self-hosting the wallet library, and removing the devnet-only no-minimum buy for the buy that fills the curve.

@@ -2,9 +2,13 @@
 
 // Animal studio, server side. Turns a short animal description into a logo (OpenAI image API) and a
 // suggested name, ticker and description (OpenAI chat API). The API key stays on the server.
-// Generated images are kept in memory and served at /art/<id>.png. That is enough for devnet testing;
-// memory is lost on restart, so before mainnet they must move to permanent storage such as IPFS.
+// Generated images are served at /art/<id>.png. With a directory (a Railway volume) they are saved there:
+// pictures of launched tokens are kept for good, and animals that were never launched are cleared after a
+// day. Without a directory they live in memory only and are lost on restart. Before mainnet, move them to
+// content-addressed storage such as IPFS.
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 const ID_RE = /^[0-9a-f]{16}$/;
 const TICKER_RE = /^[A-Z0-9]{1,10}$/;
@@ -74,16 +78,87 @@ function createArt(opts) {
 
   function info() { return { enabled }; }
 
+  const dir = o.dir || '';
+  const ttlMs = o.unlaunchedTtlMs || 86400000;
+  let lastPrune = 0;
+  let diskOk = false;
+  if (dir) {
+    try { fs.mkdirSync(dir, { recursive: true }); fs.accessSync(dir, fs.constants.W_OK); diskOk = true; }
+    catch (err) { logger.error('Art folder is not usable, keeping pictures in memory only: ' + (err && err.message)); }
+  }
+  const file = (id, ext) => path.join(dir, id + ext);
+
+  function writeAtomic(target, data) {
+    const tmp = target + '.tmp';
+    fs.writeFileSync(tmp, data);
+    fs.renameSync(tmp, target);
+  }
+
+  function saveMeta(rec) {
+    if (!diskOk) return;
+    try { writeAtomic(file(rec.id, '.json'), JSON.stringify({ id: rec.id, name: rec.name, ticker: rec.ticker, description: rec.description, createdAt: rec.createdAt, pinned: rec.pinned })); }
+    catch (err) { logger.error('Art save failed: ' + (err && err.message)); }
+  }
+
+  // Deletes animals that were never launched and are older than the keep time.
+  function prune() {
+    lastPrune = now();
+    if (!diskOk) return;
+    try {
+      for (const f of fs.readdirSync(dir)) {
+        const m = /^([0-9a-f]{16})\.json$/.exec(f);
+        if (!m) continue;
+        let rec = null;
+        try { rec = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (err) { continue; }
+        if (rec && !rec.pinned && now() - Number(rec.createdAt || 0) > ttlMs) {
+          fs.rmSync(file(m[1], '.json'), { force: true });
+          fs.rmSync(file(m[1], '.png'), { force: true });
+          store.delete(m[1]);
+        }
+      }
+    } catch (err) { logger.error('Art prune failed: ' + (err && err.message)); }
+  }
+
   function keep(buf, text) {
     const id = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16);
+    const prior = record(id);
+    const rec = { id, png: buf, name: text.name, ticker: text.ticker, description: text.description, createdAt: now(), pinned: Boolean(prior && prior.pinned) };
     store.delete(id);
-    store.set(id, { id, png: buf, name: text.name, ticker: text.ticker, description: text.description });
+    store.set(id, rec);
     while (store.size > maxStored) store.delete(store.keys().next().value);
+    if (diskOk) {
+      try { writeAtomic(file(id, '.png'), buf); saveMeta(rec); }
+      catch (err) { logger.error('Art save failed: ' + (err && err.message)); }
+    }
     return id;
   }
 
-  function record(id) { return typeof id === 'string' && ID_RE.test(id) ? store.get(id) || null : null; }
+  function record(id) {
+    if (typeof id !== 'string' || !ID_RE.test(id)) return null;
+    const hit = store.get(id);
+    if (hit) return hit;
+    if (!diskOk) return null;
+    try {
+      const meta = JSON.parse(fs.readFileSync(file(id, '.json'), 'utf8'));
+      const png = fs.readFileSync(file(id, '.png'));
+      if (!meta || meta.id !== id || !png.subarray(0, 4).equals(PNG_MAGIC)) return null;
+      const rec = { id, png, name: meta.name, ticker: meta.ticker, description: meta.description, createdAt: meta.createdAt, pinned: Boolean(meta.pinned) };
+      store.set(id, rec);
+      while (store.size > maxStored) store.delete(store.keys().next().value);
+      return rec;
+    } catch (err) { return null; }
+  }
+
   function get(id) { const r = record(id); return r ? r.png : null; }
+
+  // Marks a picture as used by a launch, so it is kept for good.
+  function pin(id) {
+    const rec = record(id);
+    if (!rec || rec.pinned) return Boolean(rec);
+    rec.pinned = true;
+    saveMeta(rec);
+    return true;
+  }
 
   async function post(path, body, timeoutMs) {
     const res = await fetchImpl(base + path, {
@@ -138,6 +213,7 @@ function createArt(opts) {
     if (d !== day) { day = d; today = 0; }
     if (today >= dailyCap) return { status: 429, body: { error: 'daily_limit' } };
     today++;
+    if (now() - lastPrune > 600000) prune();
     try {
       const [buf, text] = await Promise.all([
         makeImage(animal),
@@ -151,7 +227,8 @@ function createArt(opts) {
     }
   }
 
-  return { info, generate, get, record };
+  prune();
+  return { info, generate, get, record, pin, prune };
 }
 
 module.exports = { createArt, ID_RE };

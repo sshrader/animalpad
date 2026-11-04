@@ -97,7 +97,11 @@ function createApp(opts) {
       readJson(req, 4096).then(body => {
         if (!body) return send(res, 400, JSON.stringify({ error: 'bad_request' }), noStore);
         return launcher[action](body, { ip: clientIp(req), baseUrl: baseUrlFor(req), hasArt: id => Boolean(art.get(id)) })
-          .then(r => send(res, r.status, JSON.stringify(r.body), noStore));
+          .then(r => {
+            // A picture used by a launch is kept for good.
+            if (action === 'prepare' && r.status === 200 && typeof body.art === 'string') art.pin(body.art);
+            send(res, r.status, JSON.stringify(r.body), noStore);
+          });
       }).catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
       return;
     }
@@ -172,7 +176,10 @@ module.exports = { createApp };
 
 if (require.main === module) {
   const PORT = Number(process.env.PORT) || 3000;
+  // Railway volumes mount at a path you choose; /data is the usual one. ART_DIR overrides it.
+  const artDir = process.env.ART_DIR || (fs.existsSync('/data') ? '/data/art' : '');
   const art = createArt({
+    dir: artDir,
     apiKey: process.env.OPENAI_API_KEY || '',
     base: process.env.OPENAI_BASE || undefined,
     imageModel: process.env.OPENAI_IMAGE_MODEL || undefined,
@@ -186,7 +193,7 @@ if (require.main === module) {
   });
   const server = createApp({ art, launcher });
   server.listen(PORT, '0.0.0.0', () => {
-    console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on)' : ' (animal studio off: set OPENAI_API_KEY)') +
+    console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on)' : ' (animal studio off: set OPENAI_API_KEY)') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
       (launcher.info().enabled ? ' (devnet launch on)' : ' (devnet launch off: no devnet/presets.json)'));
   });
   // Railway stops containers with SIGTERM; close cleanly.
