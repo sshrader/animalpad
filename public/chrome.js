@@ -5,6 +5,18 @@
 
   const $ = id => document.getElementById(id);
 
+  // Dark is the default. The switch remembers the choice on this device when the browser allows it.
+  const root = document.documentElement;
+  function setTheme(light) {
+    if (light) root.dataset.theme = 'light'; else delete root.dataset.theme;
+    $('theme').setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode');
+    $('theme').setAttribute('aria-pressed', light ? 'true' : 'false');
+    try { localStorage.setItem('animalpad-theme', light ? 'light' : 'dark'); } catch (e) { /* not saved, still works */ }
+  }
+  $('theme').addEventListener('click', () => setTheme(root.dataset.theme !== 'light'));
+  $('theme').setAttribute('aria-pressed', root.dataset.theme === 'light' ? 'true' : 'false');
+  if (root.dataset.theme === 'light') $('theme').setAttribute('aria-label', 'Switch to dark mode');
+
   function step(n) { document.body.dataset.step = String(n); }
   document.addEventListener('animalpad:staged', () => step(2));
   document.addEventListener('animalpad:launched', () => step(3));
