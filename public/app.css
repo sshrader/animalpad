@@ -173,3 +173,12 @@ details.trade[open] summary::before { transform: rotate(90deg); }
 .buyrow { display: flex; align-items: center; gap: 8px; font-weight: 400; color: var(--muted); }
 .buyrow input { width: 120px; }
 .buyfirst .hint { font-weight: 400; }
+
+/* Wallet button in the header */
+.wbar { position: relative; }
+.wbtn { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); color: var(--text); font: 600 13px/1 var(--font); cursor: pointer; }
+.wbtn.on { font-family: var(--mono); font-weight: 500; }
+.wbtn.on::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--ok); }
+.wmenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: grid; min-width: 170px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.witem { text-align: left; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 500 14px/1.2 var(--font); cursor: pointer; }
+.witem:hover, .witem:focus-visible { background: var(--soft); }

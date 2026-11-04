@@ -110,7 +110,7 @@
       if (claimed) say('Claimed ✓ ' + claimed + ' coin' + (claimed === 1 ? '' : 's') + ', about ' + fmt(total) + ' SOL, sent to your wallet.');
     } catch (err) {
       const m = err && err.message ? String(err.message) : '';
-      say(err && err.code === 'no_wallet' ? W.NO_WALLET : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.' : 'The claim did not go through. Check that your wallet is on Devnet.', true);
+      say(err && err.code === 'no_wallet' ? W.NO_WALLET : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.' : 'The claim did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet.' : 'Devnet.'), true);
     }
     busy = false;
     await load(true);
@@ -125,6 +125,7 @@
     }
   }
 
+  document.addEventListener('animalpad:wallet', e => { wallet = (e.detail && e.detail.address) || ''; if (data) render(); else if (wallet) load(); });
   $('connect').addEventListener('click', connect);
   $('claim-all').addEventListener('click', () => claim((data && data.pools) || []));
   $('reload').addEventListener('click', load);

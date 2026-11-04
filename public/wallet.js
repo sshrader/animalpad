@@ -25,13 +25,37 @@
     });
   }
 
+  // Every page listens for this to learn when the connected wallet changes.
+  function setAddress(next) {
+    const value = next ? String(next) : null;
+    if (value === address) return;
+    address = value;
+    try { document.dispatchEvent(new CustomEvent('animalpad:wallet', { detail: { address: address } })); } catch (e) { /* no document */ }
+  }
+
   async function connect() {
     const p = provider();
     if (!p) { const e = new Error('no_wallet'); e.code = 'no_wallet'; throw e; }
     const res = await p.connect();
-    address = String(res && res.publicKey ? res.publicKey : p.publicKey);
+    setAddress(res && res.publicKey ? res.publicKey : p.publicKey);
     return address;
   }
+
+  async function disconnect() {
+    const p = provider();
+    try { if (p && p.disconnect) await p.disconnect(); } catch (e) { /* already disconnected */ }
+    setAddress(null);
+  }
+
+  // Follow the wallet itself: the person can switch accounts or disconnect inside Phantom.
+  (function watch() {
+    const p = provider();
+    if (!p || !p.on) return;
+    p.on('accountChanged', pk => setAddress(pk || null));
+    p.on('disconnect', () => setAddress(null));
+    // Reconnect quietly if this site was approved before. It never shows a prompt.
+    try { p.connect({ onlyIfTrusted: true }).then(res => setAddress(res && res.publicKey ? res.publicKey : p.publicKey), () => {}); } catch (e) { /* not trusted yet */ }
+  })();
 
   // Signs and sends a base64 transaction from the server. Returns the signature.
   async function signAndSend(b64) {
@@ -65,5 +89,5 @@
 
   const noWallet = () => 'No Phantom wallet found. Install Phantom' + (window.AnimalNet && window.AnimalNet.main ? '' : ', switch it to Devnet (Settings, Developer Settings, Testnet Mode)') + ', then reload.';
 
-  window.AnimalWallet = { provider, connect, signAndSend, confirm, get NO_WALLET() { return noWallet(); }, get address() { return address; } };
+  window.AnimalWallet = { provider, connect, disconnect, signAndSend, confirm, get NO_WALLET() { return noWallet(); }, get address() { return address; } };
 })();

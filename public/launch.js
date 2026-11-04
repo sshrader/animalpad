@@ -119,6 +119,7 @@
 
   document.addEventListener('animalpad:reset', () => { staged = null; $('dl-result').hidden = true; say(''); render(); });
 
+  document.addEventListener('animalpad:wallet', e => { wallet = (e.detail && e.detail.address) || null; render(); });
   $('dl-connect').addEventListener('click', connect);
   $('dl-go').addEventListener('click', launch);
 
