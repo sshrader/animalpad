@@ -261,3 +261,86 @@ test('server: a launch pins its picture so it outlives the clean-up', async () =
     assert.equal(bad.status, 400);
   });
 });
+
+const JPG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(300, 9)]);
+const ACCOUNT = 'eced019eb2eb8d3eeb8e612d116d980a';
+
+// A fake Cloudflare Workers AI.
+function fakeCloudflare(opt) {
+  const o = opt || {};
+  const seen = [];
+  const impl = async (url, init) => {
+    seen.push({ url, body: JSON.parse(init.body), auth: init.headers.Authorization });
+    const json = v => ({ ok: true, status: 200, json: async () => v });
+    if (/\/ai\/run\//.test(url)) {
+      if (o.fail) return { ok: false, status: 500, json: async () => ({}) };
+      if (o.unsuccessful) return json({ success: false, errors: [{ message: 'nope' }] });
+      return json({ result: { image: (o.notImage ? Buffer.from('plain text, not an image '.repeat(20)) : JPG).toString('base64') }, success: true });
+    }
+    return json({ choices: [{ message: { content: o.chat || 'Sure! Here you go: {"name":"Crown Heron","ticker":"crown","description":"Rules the pond."} Enjoy.' } }] });
+  };
+  return { impl, seen };
+}
+const cfArt = (opt, extra) => {
+  const f = fakeCloudflare(opt);
+  return { f, art: createArt(Object.assign({ provider: 'cloudflare', apiKey: 'cf-token', accountId: ACCOUNT, fetchImpl: f.impl, logger: quiet }, extra)) };
+};
+
+test('cloudflare: calls Workers AI with the account, token and model, and accepts a JPEG', async () => {
+  const { f, art } = cfArt();
+  assert.deepEqual(art.info(), { enabled: true });
+  assert.equal(art.provider, 'cloudflare');
+  const r = await art.generate({ animal: 'a tired heron in a tiny crown' }, { ip: '1.1.1.1' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.imageUrl, '/art/' + r.body.id + '.jpg');
+  assert.equal(r.body.name, 'Crown Heron');
+  assert.equal(r.body.ticker, 'CROWN');
+  assert.ok(art.get(r.body.id).equals(JPG));
+  assert.equal(art.record(r.body.id).ext, 'jpg');
+  const img = f.seen.find(x => /\/ai\/run\//.test(x.url));
+  assert.equal(img.url, 'https://api.cloudflare.com/client/v4/accounts/' + ACCOUNT + '/ai/run/@cf/black-forest-labs/flux-1-schnell');
+  assert.equal(img.auth, 'Bearer cf-token');
+  assert.equal(img.body.steps, 4);
+  assert.match(img.body.prompt, /tired heron/);
+  const chat = f.seen.find(x => /chat\/completions/.test(x.url));
+  assert.equal(chat.url, 'https://api.cloudflare.com/client/v4/accounts/' + ACCOUNT + '/ai/v1/chat/completions');
+  assert.equal(chat.body.model, '@cf/meta/llama-3.1-8b-instruct');
+  assert.equal(JSON.stringify(r.body).includes('cf-token'), false);
+});
+
+test('cloudflare: needs a valid account id and safe model names, and fails with generic errors', async () => {
+  assert.deepEqual(createArt({ provider: 'cloudflare', apiKey: 'k', accountId: '', logger: quiet }).info(), { enabled: false });
+  assert.deepEqual(createArt({ provider: 'cloudflare', apiKey: 'k', accountId: '../../x', logger: quiet }).info(), { enabled: false });
+  assert.deepEqual(createArt({ provider: 'cloudflare', apiKey: '', accountId: ACCOUNT, logger: quiet }).info(), { enabled: false });
+  assert.deepEqual(createArt({ provider: 'cloudflare', apiKey: 'k', accountId: ACCOUNT, imageModel: '@cf/../../admin', logger: quiet }).info(), { enabled: false });
+  assert.deepEqual(createArt({ provider: 'cloudflare', apiKey: 'k', accountId: ACCOUNT, imageModel: 'gpt-image-1', logger: quiet }).info(), { enabled: false });
+  assert.equal(createArt({ provider: 'cloudflare', apiKey: 'k', accountId: ACCOUNT, imageModel: '@cf/stabilityai/stable-diffusion-xl-base-1.0', logger: quiet }).info().enabled, true);
+  for (const o of [{ fail: true }, { unsuccessful: true }, { notImage: true }]) {
+    const r = await cfArt(o).art.generate({ animal: 'a heron' }, {});
+    assert.deepEqual(r, { status: 502, body: { error: 'generation_failed' } });
+  }
+  const noJson = await cfArt({ chat: 'I cannot do that' }).art.generate({ animal: 'a sleepy heron' }, {});
+  assert.equal(noJson.status, 200);
+  assert.equal(noJson.body.name, 'Heron');
+});
+
+test('cloudflare: a JPEG is saved, served as image/jpeg, linked in metadata, and only at its own extension', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'art-'));
+  const { art } = cfArt({}, { dir });
+  const r = await art.generate({ animal: 'a heron' }, {});
+  const id = r.body.id;
+  assert.ok(fs.existsSync(path.join(dir, id + '.jpg')));
+  assert.equal(fs.existsSync(path.join(dir, id + '.png')), false);
+  const fresh = createArt({ provider: 'cloudflare', apiKey: 'cf-token', accountId: ACCOUNT, fetchImpl: fakeCloudflare().impl, logger: quiet, dir });
+  assert.ok(fresh.get(id).equals(JPG));
+  assert.equal(fresh.record(id).ext, 'jpg');
+  await withServer({ art: fresh }, async base => {
+    const img = await fetch(base + '/art/' + id + '.jpg');
+    assert.equal(img.status, 200);
+    assert.equal(img.headers.get('content-type'), 'image/jpeg');
+    assert.ok(Buffer.from(await img.arrayBuffer()).equals(JPG));
+    assert.equal((await fetch(base + '/art/' + id + '.png')).status, 404);
+    const meta = await (await fetch(base + '/meta.json?n=Crown%20Heron&s=CROWN&i=' + id)).json();
+    assert.equal(meta.image, base + '/art/' + id + '.jpg');
+  });
+});

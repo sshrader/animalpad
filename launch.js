@@ -334,7 +334,7 @@ function metadataFor(name, symbol, art, base) {
   const s = typeof symbol === 'string' ? symbol.replace(/^\$/, '').trim().toUpperCase() : '';
   if (!n || !SYMBOL_RE.test(s)) return null;
   const description = art && art.description ? cleanText(art.description, 200) : 'A devnet test token launched on AnimalPad.';
-  return { name: n, symbol: s, description, image: art && art.id && base ? base + '/art/' + art.id + '.png' : '' };
+  return { name: n, symbol: s, description, image: art && art.id && base ? base + '/art/' + art.id + '.' + (art.ext === 'jpg' ? 'jpg' : 'png') : '' };
 }
 
 module.exports = { createLauncher, loadPresets, metadataFor, cleanText };

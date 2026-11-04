@@ -135,11 +135,11 @@ function createApp(opts) {
     }
 
     // A generated animal picture, kept in memory by its id.
-    const m = /^\/art\/([0-9a-f]{16})\.png$/.exec(pathname);
+    const m = /^\/art\/([0-9a-f]{16})\.(png|jpg)$/.exec(pathname);
     if (m) {
-      const png = art.get(m[1]);
-      if (!png) return send(res, 404, 'Not found', TEXT_TYPE);
-      return send(res, 200, req.method === 'HEAD' ? '' : png, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' });
+      const rec = art.record(m[1]);
+      if (!rec || rec.ext !== m[2]) return send(res, 404, 'Not found', TEXT_TYPE);
+      return send(res, 200, req.method === 'HEAD' ? '' : rec.png, { 'Content-Type': m[2] === 'jpg' ? 'image/jpeg' : 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' });
     }
 
     // Token metadata read by wallets and explorers. Built from the link and the stored animal.
@@ -178,12 +178,16 @@ if (require.main === module) {
   const PORT = Number(process.env.PORT) || 3000;
   // Railway volumes mount at a path you choose; /data is the usual one. ART_DIR overrides it.
   const artDir = process.env.ART_DIR || (fs.existsSync('/data') ? '/data/art' : '');
+  // IMAGE_PROVIDER=cloudflare uses Workers AI (needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN).
+  // Anything else uses OpenAI (needs OPENAI_API_KEY). IMAGE_MODEL and TEXT_MODEL override the defaults.
+  const cloudflare = process.env.IMAGE_PROVIDER === 'cloudflare';
   const art = createArt({
     dir: artDir,
-    apiKey: process.env.OPENAI_API_KEY || '',
-    base: process.env.OPENAI_BASE || undefined,
-    imageModel: process.env.OPENAI_IMAGE_MODEL || undefined,
-    textModel: process.env.OPENAI_TEXT_MODEL || undefined,
+    provider: cloudflare ? 'cloudflare' : 'openai',
+    apiKey: (cloudflare ? process.env.CLOUDFLARE_API_TOKEN : process.env.OPENAI_API_KEY) || '',
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    imageModel: process.env.IMAGE_MODEL || process.env.OPENAI_IMAGE_MODEL || undefined,
+    textModel: process.env.TEXT_MODEL || process.env.OPENAI_TEXT_MODEL || undefined,
     perIpPerHour: Number(process.env.ART_PER_IP_PER_HOUR) || undefined,
     dailyCap: Number(process.env.ART_DAILY_CAP) || undefined
   });
@@ -193,7 +197,7 @@ if (require.main === module) {
   });
   const server = createApp({ art, launcher });
   server.listen(PORT, '0.0.0.0', () => {
-    console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on)' : ' (animal studio off: set OPENAI_API_KEY)') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
+    console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio off: set the image provider key)') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
       (launcher.info().enabled ? ' (devnet launch on)' : ' (devnet launch off: no devnet/presets.json)'));
   });
   // Railway stops containers with SIGTERM; close cleanly.
