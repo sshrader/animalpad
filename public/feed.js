@@ -119,7 +119,7 @@
 
   async function load() {
     try {
-      const res = await fetch('/api/launches', { headers: { Accept: 'application/json' } });
+      const res = await fetch('/api/launches', { cache: 'no-store', headers: { Accept: 'application/json' } });
       const body = await res.json();
       const list = Array.isArray(body && body.launches) ? body.launches : [];
       const box = $('feed');
@@ -134,7 +134,7 @@
   }
 
   // New launches appear after the page launches one, and the list quietly refreshes while the tab is open.
-  document.addEventListener('animalpad:launched', () => setTimeout(load, 4000));
+  document.addEventListener('animalpad:launched', () => [3000, 8000, 16000, 30000, 60000].forEach(ms => setTimeout(load, ms)));
   setInterval(() => { if (!document.hidden) load(); }, 60000);
   load();
 

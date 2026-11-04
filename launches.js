@@ -22,6 +22,8 @@ function createLaunches(opts) {
   const pageSize = o.pageSize || 24;
   const hidden = new Set(o.hidden || []);
 
+  let cache = null; // { at, items }
+  let running = null;
   let entries = [];
   if (file) {
     try {
@@ -55,19 +57,19 @@ function createLaunches(opts) {
     const i = entries.findIndex(x => x.pool === entry.pool);
     if (i !== -1) return true; // a retry of the same launch
     entries.push(entry);
+    cache = null; // show it as soon as it is on-chain
     if (entries.length > max) entries = entries.slice(entries.length - max);
     save();
     return true;
   }
 
-  let cache = null; // { at, items }
-  let running = null;
-
+  
   async function build() {
     const newest = entries.slice().sort((a, b) => b.createdAt - a.createdAt).filter(e => !hidden.has(e.pool)).slice(0, pageSize * 2);
     const items = [];
     let changed = false;
     let failed = false;
+    let pending = false; // a recent launch that is not on-chain yet
     const queue = newest.slice();
     // A few at a time, so the list is quick without hammering the RPC.
     async function worker() {
@@ -83,6 +85,7 @@ function createLaunches(opts) {
             migrated: r.body.migrated, curveFull: r.body.curveFull
           });
         } else if (r.status === 404) {
+          if (now() - e.createdAt < 600000) pending = true;
           // Not on-chain. If it has been that way for a day it was never sent, so forget it.
           if (!e.verified && now() - e.createdAt > unverifiedTtlMs) { entries = entries.filter(x => x.pool !== e.pool); changed = true; }
         } else {
@@ -93,7 +96,7 @@ function createLaunches(opts) {
     await Promise.all([worker(), worker(), worker(), worker()]);
     if (changed) save();
     items.sort((a, b) => b.createdAt - a.createdAt);
-    return { items: items.slice(0, pageSize), failed };
+    return { items: items.slice(0, pageSize), failed, pending };
   }
 
   // The list for the page. Cached for a short time, and the last good one is kept if the RPC fails.
@@ -101,8 +104,9 @@ function createLaunches(opts) {
     if (cache && now() - cache.at < listTtlMs) return cache.items;
     if (!running) {
       running = build().then(r => {
-        if (!r.failed || !cache) cache = { at: now(), items: r.items };
-        else cache = { at: now() - listTtlMs + 5000, items: cache.items }; // retry soon, keep what we had
+        if (r.pending && !r.failed) cache = { at: now() - listTtlMs + Math.min(listTtlMs, 4000), items: r.items }; // look again in a few seconds
+        else if (!r.failed || !cache) cache = { at: now(), items: r.items };
+        else cache = { at: now() - listTtlMs + Math.min(listTtlMs, 5000), items: cache.items }; // retry soon, keep what we had
         return cache.items;
       }).catch(err => {
         logger.error('Launch list failed: ' + (err && err.message));
