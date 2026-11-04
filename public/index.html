@@ -8,13 +8,14 @@
 <script>try { if (localStorage.getItem("animalpad-theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@400..800&display=swap">
 <style>
 :root {
   --ground: #14103a; --paper: #1f1a52; --soft: #2a2368; --text: #f1eeff; --muted: #b3acdf;
   --edge: #7468e0; --accent: #ff6aa0; --on-accent: #1c1547; --pop: #ffd23f;
   --ok: #5ee0b0; --bad: #ff8aa8; --stage-s: 38%; --stage-l: 24%;
-  --font: "Bricolage Grotesque", ui-rounded, "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font: "Figtree", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --display: "Bagel Fat One", "Arial Rounded MT Bold", "Avenir Next", system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: dark;
 }
@@ -35,7 +36,7 @@ body { margin: 0; background: var(--ground); color: var(--text); font: 400 16px/
 
 /* Top bar and the step rail */
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
-.brand { margin: 0; font: 800 1.5rem/1 var(--font); letter-spacing: -0.02em; }
+.brand { margin: 0; font: 400 1.5rem/1 var(--display); letter-spacing: 0; }
 .chip-net { padding: 5px 12px; border: 2px solid var(--edge); border-radius: 999px; background: var(--pop); color: #1c1547; font-size: 13px; font-weight: 600; }
 .mode { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--edge); background: var(--paper); color: var(--text); display: grid; place-items: center; padding: 0; }
 .mode::before { content: ""; width: 16px; height: 16px; border-radius: 50%; background: var(--text); box-shadow: inset -6px -2px 0 0 var(--paper); }
@@ -50,19 +51,19 @@ html { scroll-behavior: smooth; }
 .feed:empty { display: none; }
 .coin { display: grid; gap: 8px; padding: 10px; border: 2px solid var(--edge); border-radius: 16px; background: var(--soft); min-width: 0; align-content: start; }
 .coin img, .coin .noimg { width: 100%; aspect-ratio: 1; object-fit: cover; border: 2px solid var(--edge); border-radius: 12px; background: var(--paper); display: block; }
-.coin .noimg { display: grid; place-items: center; font: 800 2rem/1 var(--font); color: var(--muted); }
+.coin .noimg { display: grid; place-items: center; font: 400 2rem/1 var(--display); color: var(--muted); }
 .coin .top2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
-.coin strong { font: 700 1rem/1.2 var(--font); overflow-wrap: anywhere; }
+.coin strong { font: 400 1rem/1.2 var(--display); overflow-wrap: anywhere; }
 .coin .sym { font-size: 12px; font-weight: 700; color: var(--muted); }
 .coin .meta { font-size: 12px; color: var(--muted); }
 .coin .tbar { height: 10px; }
 .coin .btn { padding: 6px 12px; font-size: 14px; box-shadow: 0 3px 0 var(--edge); }
 .band { display: grid; gap: 14px; }
-.band h2 { margin: 0; font: 800 clamp(1.5rem, 4vw, 2rem)/1.1 var(--font); letter-spacing: -0.02em; }
+.band h2 { margin: 0; font: 400 clamp(1.5rem, 4vw, 2rem)/1.1 var(--display); letter-spacing: 0; }
 .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; counter-reset: s; }
 .steps li { counter-increment: s; display: grid; gap: 6px; align-content: start; padding: 16px; border: 2px solid var(--edge); border-radius: 18px; background: var(--paper); }
 .steps li::before { content: counter(s); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--pop); color: #1c1547; border: 2px solid var(--edge); font-weight: 800; font-size: 14px; }
-.steps b { font: 700 1.1rem/1.2 var(--font); }
+.steps b { font: 400 1.1rem/1.2 var(--display); }
 .steps span { color: var(--muted); font-size: 15px; }
 .about { margin: 0; max-width: 62ch; }
 .faq { display: grid; gap: 8px; max-width: 70ch; }
@@ -77,18 +78,18 @@ body[data-step="2"] .rail li:nth-child(1), body[data-step="3"] .rail li:nth-chil
 body[data-step="2"] .rail li:nth-child(1) b, body[data-step="3"] .rail li:nth-child(-n+2) b { background: var(--ok); color: var(--paper); border-color: var(--ok); }
 @media (max-width: 520px) { .rail li { padding: 8px; gap: 6px; font-size: 13px; } }
 
-h1 { margin: 0; font: 800 clamp(2.2rem, 7vw, 4.2rem)/1 var(--font); letter-spacing: -0.03em; font-stretch: 85%; text-wrap: balance; max-width: 16ch; }
+h1 { margin: 0; font: 400 clamp(2.2rem, 7vw, 4.2rem)/1 var(--display); letter-spacing: 0; text-wrap: balance; max-width: 16ch; }
 .lede { margin: 0; color: var(--muted); max-width: 46ch; }
 
 /* Panels */
 .panel { background: var(--paper); border: 2px solid var(--edge); border-radius: 22px; padding: 20px; box-shadow: 0 6px 0 var(--edge); min-width: 0; }
-.panel h2 { margin: 0 0 12px; font: 700 1.2rem/1.2 var(--font); }
+.panel h2 { margin: 0 0 12px; font: 400 1.2rem/1.2 var(--display); }
 
 /* Studio: prompt on the left, the animal on the right */
 .studio { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: 22px; padding: 22px; border-radius: 28px; }
 @media (max-width: 820px) { .studio { grid-template-columns: 1fr; } }
 .ask { display: grid; gap: 14px; align-content: start; min-width: 0; }
-.ask label.q { font: 700 1.2rem/1.2 var(--font); }
+.ask label.q { font: 400 1.2rem/1.2 var(--display); }
 .say { display: grid; gap: 10px; }
 input[type="text"], input[type="number"] {
   width: 100%; background: var(--soft); color: var(--text); border: 2px solid var(--edge); border-radius: 12px; padding: 11px 14px; font: inherit; min-width: 0;
@@ -127,10 +128,10 @@ button { font: inherit; cursor: pointer; }
 }
 .stage img { display: block; width: min(100%, 300px); aspect-ratio: 1; object-fit: cover; border: 3px solid var(--edge); border-radius: 22px; background: var(--paper); transform: rotate(-2.5deg); box-shadow: 0 8px 0 var(--edge); max-width: 100%; }
 .stage .tag { margin-top: 12px; display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 4px 10px; text-align: center; max-width: 100%; }
-.stage .tag strong { font: 800 1.6rem/1.1 var(--font); letter-spacing: -0.02em; overflow-wrap: anywhere; color: var(--text); }
+.stage .tag strong { font: 400 1.6rem/1.1 var(--display); letter-spacing: 0; overflow-wrap: anywhere; color: var(--text); }
 .stage .tag span { padding: 2px 10px; border: 2px solid var(--edge); border-radius: 999px; background: var(--paper); font-weight: 700; font-size: 13px; }
 .empty { display: grid; place-items: center; gap: 8px; width: min(100%, 280px); aspect-ratio: 1; border: 3px dashed var(--edge); border-radius: 22px; color: var(--muted); text-align: center; padding: 18px; }
-.empty b { font: 800 4rem/1 var(--font); color: var(--text); opacity: 0.35; }
+.empty b { font: 400 4rem/1 var(--display); color: var(--text); opacity: 0.35; }
 .stage[data-state="drawing"] .empty { animation: breathe 1.4s ease-in-out infinite; }
 @keyframes breathe { 50% { transform: scale(1.03) rotate(1deg); opacity: 0.7; } }
 @media (prefers-reduced-motion: reduce) { .stage[data-state="drawing"] .empty { animation: none; } .stage, .btn { transition: none; } }
@@ -152,7 +153,7 @@ button { font: inherit; cursor: pointer; }
 .ca-copy { padding: 4px 10px; font-size: 12px; border: 2px solid var(--edge); border-radius: 8px; background: var(--paper); color: var(--text); font-weight: 600; }
 .dl-result { display: grid; gap: 8px; }
 .dl-result a { font-size: 14px; font-weight: 600; color: var(--text); text-underline-offset: 3px; }
-details.trade summary { cursor: pointer; font: 700 1.2rem/1.2 var(--font); list-style: none; display: flex; align-items: center; gap: 8px; }
+details.trade summary { cursor: pointer; font: 400 1.2rem/1.2 var(--display); list-style: none; display: flex; align-items: center; gap: 8px; }
 details.trade summary::-webkit-details-marker { display: none; }
 details.trade summary::before { content: ""; width: 0; height: 0; border-left: 8px solid var(--text); border-top: 6px solid transparent; border-bottom: 6px solid transparent; transition: transform 0.15s; }
 details.trade[open] summary::before { transform: rotate(90deg); }
