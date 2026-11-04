@@ -17,27 +17,27 @@
     <p class="brand">AnimalPad</p>
     <nav class="nav" aria-label="Sections"><a href="#recent">Recent launches</a><a href="#how">How it works</a><a href="#about">About</a></nav>
     <div class="row">
-      <span class="chip-net">Devnet test · no real money</span>
+      <span class="chip-net">Devnet · test coins only</span>
       <button type="button" class="mode" id="theme" aria-label="Switch to light mode" title="Switch light or dark"></button>
     </div>
   </header>
 
-  <ol class="rail" aria-label="Steps">
-    <li><b>1</b>Draw</li>
-    <li><b>2</b>Launch</li>
-    <li><b>3</b>Trade</li>
-  </ol>
-
-  <div style="display:grid;gap:12px">
+  <div class="hero">
     <h1>Describe an animal. Launch its coin.</h1>
     <p class="lede">AI draws the mascot and names it. Keep it or toss it, then put it on a bonding curve with your wallet.</p>
   </div>
 
   <section class="panel" id="recent" aria-labelledby="recent-h">
-    <h2 id="recent-h">Recently launched</h2>
+    <div class="head">
+      <h2 id="recent-h">Recently launched</h2>
+      <div class="seg" role="group" aria-label="View">
+        <button type="button" id="v-cards" aria-pressed="true">Coins</button>
+        <button type="button" id="v-curve" aria-pressed="false">Curve</button>
+      </div>
+    </div>
     <div class="curvebox" id="curvebox" hidden>
       <svg id="curve" viewBox="0 0 640 280" role="img" aria-labelledby="curve-t"><title id="curve-t">Recent coins placed along the bonding curve by how much they have raised</title></svg>
-      <p class="hint">Each coin sits on the curve where its raised SOL puts it. Further right means closer to filling the curve. Select a coin to open its page.</p>
+      <p class="hint">Each coin sits where its raised SOL puts it. Further right is closer to full. Select one to open it.</p>
     </div>
     <div class="feed" id="feed" aria-live="polite"></div>
     <p class="hint" id="feed-note">Loading the latest launches…</p>
@@ -74,8 +74,7 @@
     </div>
   </section>
 
-  <div class="pair">
-    <section class="panel" id="launch">
+    <section class="panel stack2" id="launch" hidden>
       <h2>Launch it</h2>
       <p class="hint" id="dl-hint">Accept an animal first. Then connect Phantom, set to Devnet, and launch it with test SOL.</p>
       <div id="devnet-launch" hidden class="stack">
@@ -98,7 +97,7 @@
     </section>
 
     <details class="panel trade" id="trade" hidden>
-      <summary>Trade it</summary>
+      <summary>Trade a coin by its pool address</summary>
       <div class="trade-body">
         <p class="hint">Paste a pool address from a launch, see how full its curve is, and buy with devnet SOL. Your wallet signs; nothing is sent without your approval.</p>
         <div class="trade-row">
@@ -122,31 +121,32 @@
         <p class="dl-status" id="t-status" role="status"></p>
       </div>
     </details>
-  </div>
 
   <section id="how" class="band" aria-labelledby="how-h">
     <h2 id="how-h">How it works</h2>
     <ol class="steps">
-      <li><b>Describe</b><span>Type an animal in a few words. The studio draws it as a sticker-style mascot and suggests a name, a ticker and a one-line description. Reject it as many times as you like.</span></li>
-      <li><b>Make it yours</b><span>Edit the name and ticker, and add your own website and socials if you have them. Links are locked once you start the launch.</span></li>
-      <li><b>Launch</b><span>Your wallet signs one transaction. The site never holds your keys. The token goes live on a bonding curve: buyers trade against it, and the price rises as the curve fills.</span></li>
-      <li><b>Trade and earn</b><span id="fee-note-how">Creators earn a share of the trading fees on the curve, claimed with the wallet that launched it.</span></li>
+      <li><b>Describe</b><span>Type an animal. AI draws it and suggests a name, ticker and description. Redraw as often as you like.</span></li>
+      <li><b>Make it yours</b><span>Edit the details and add your own links if you want them.</span></li>
+      <li><b>Launch</b><span>Your wallet signs one transaction. The coin goes live on a bonding curve and its price rises as people buy.</span></li>
+      <li><b>Earn</b><span id="fee-note-how">Creators earn a share of the trading fees, claimed with the wallet that launched the coin.</span></li>
     </ol>
   </section>
 
   <section id="about" class="band" aria-labelledby="about-h">
     <h2 id="about-h">About</h2>
-    <p class="about">AnimalPad is a test version of an animal-mascot token launcher, running on Solana devnet. Everything here uses test SOL, which has no value, and so do the tokens. It exists to try the idea out before any real money is involved.</p>
-    <div class="faq">
-      <details><summary>Is this real money?</summary><p>No. It runs on devnet, Solana's test network, with test SOL. Real-money mainnet is switched off in the code.</p></details>
-      <details><summary>Who can claim the creator fees?</summary><p>Only the wallet that launched the token. The site prepares the claim and that wallet signs it.</p></details>
-      <details><summary>What happens when the curve fills?</summary><p>It is ready to move to a regular trading pool. On this test version the team does that step with a script; a button on the page is not built yet.</p></details>
-      <details><summary>Where do the pictures come from?</summary><p>They are made by AI from your description. The studio asks for an original character and refuses well-known characters, brands and people, but it is not perfect. Pictures of launched tokens are kept; animals you do not launch are deleted after a day.</p></details>
-      <details><summary>What does it cost?</summary><p>Test SOL for the network fee and for any buys you make. Nothing else.</p></details>
+    <div class="aboutgrid">
+      <p class="about">AnimalPad is a test launcher for animal-mascot coins. It runs on Solana devnet, so every coin and every SOL here is play money. It exists to try the idea out before any real money is involved.</p>
+      <div class="faq">
+        <details><summary>Is this real money?</summary><p>No. It runs on devnet, Solana's test network. Real-money mainnet is switched off in the code.</p></details>
+        <details><summary>Who can claim the creator fees?</summary><p>Only the wallet that launched the coin. The site prepares the claim and that wallet signs it.</p></details>
+        <details><summary>What happens when the curve fills?</summary><p>The coin is ready to move to a regular trading pool. On this test version the team does that step by script; a button is not built yet.</p></details>
+        <details><summary>Where do the pictures come from?</summary><p>AI makes them from your description, and asks for an original character. It refuses well-known characters, brands and people, but it is not perfect. Pictures of launched coins are kept; animals you do not launch are deleted after a day.</p></details>
+        <details><summary>What does it cost?</summary><p>Only test SOL, for the network fee and for any buys you make.</p></details>
+      </div>
     </div>
   </section>
 
-  <p class="foot">Test version on Solana devnet. Pictures are made by AI. Animals you do not launch are deleted after a day; launched ones are kept. Tokens here have no value.</p>
+  <p class="foot">Test version on Solana devnet. Pictures are made by AI, and the coins have no value.</p>
 </main>
 <script src="/wallet.js"></script>
 <script src="/studio.js"></script>

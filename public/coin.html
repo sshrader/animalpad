@@ -14,7 +14,7 @@
 .back { color: var(--text); font-weight: 600; text-underline-offset: 4px; }
 .coinpage { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 24px; align-items: start; }
 @media (max-width: 720px) { .coinpage { grid-template-columns: minmax(0, 1fr); } }
-.coinpage .pic { width: 100%; aspect-ratio: 1; object-fit: cover; border: 2px solid var(--edge); border-radius: 18px; background: var(--soft); display: block; }
+.coinpage .pic { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--line); border-radius: 18px; background: var(--soft); display: block; }
 .coinpage .pic.noimg { display: grid; place-items: center; font: 700 4rem/1 var(--display); color: var(--muted); }
 .cp-body { display: grid; gap: 14px; min-width: 0; }
 .cp-body h1 { max-width: none; font-size: clamp(1.8rem, 5vw, 2.8rem); }
@@ -25,21 +25,21 @@
 .facts dd { margin: 0; overflow-wrap: anywhere; }
 .facts a, .cp-links a { color: var(--text); text-underline-offset: 3px; }
 .cp-links { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-.mood { display: inline-block; padding: 3px 12px; border-radius: 999px; border: 2px solid var(--edge); background: var(--soft); font: 600 13px var(--font); width: fit-content; }
+.mood { display: inline-block; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--soft); font: 600 13px var(--font); width: fit-content; }
 .mood[data-mood="awake"] { background: var(--paper); }
 .mood[data-mood="excited"], .mood[data-mood="ready"] { background: var(--accent); color: var(--on-accent); }
 .mood[data-mood="graduated"] { background: var(--pop); color: #1c1547; }
 .pic[data-mood="sleepy"] { filter: saturate(0.6) brightness(0.9); }
-.pic[data-mood="excited"], .pic[data-mood="ready"] { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent); }
-.pic[data-mood="graduated"] { border-color: var(--pop); box-shadow: 0 0 0 4px var(--pop); }
+.pic[data-mood="excited"], .pic[data-mood="ready"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+.pic[data-mood="graduated"] { border-color: var(--pop); box-shadow: 0 0 0 3px var(--pop); }
 .chat { display: grid; gap: 10px; margin-top: 22px; }
 .chat h2 { margin: 0; font: 700 1.2rem/1.2 var(--display); }
 .chat-log { display: grid; gap: 8px; max-height: 260px; overflow-y: auto; }
-.chat-log p { margin: 0; padding: 8px 12px; border: 2px solid var(--edge); border-radius: 14px; max-width: 80%; overflow-wrap: anywhere; }
+.chat-log p { margin: 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; max-width: 80%; overflow-wrap: anywhere; }
 .chat-log .me { justify-self: end; background: var(--accent); color: var(--on-accent); }
 .chat-log .bot { justify-self: start; background: var(--soft); }
 .chat-row { display: flex; gap: 8px; }
-.chat-row input { flex: 1 1 auto; min-width: 0; background: var(--soft); color: var(--text); border: 2px solid var(--edge); border-radius: 12px; padding: 10px 14px; font: inherit; }
+.chat-row input { flex: 1 1 auto; min-width: 0; background: var(--soft); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font: inherit; }
 .cp-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 a.btn { text-decoration: none; display: inline-block; }
 </style>

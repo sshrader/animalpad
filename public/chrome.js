@@ -17,10 +17,14 @@
   $('theme').setAttribute('aria-pressed', root.dataset.theme === 'light' ? 'true' : 'false');
   if (root.dataset.theme === 'light') $('theme').setAttribute('aria-label', 'Switch to dark mode');
 
-  function step(n) { document.body.dataset.step = String(n); }
-  document.addEventListener('animalpad:staged', () => step(2));
-  document.addEventListener('animalpad:launched', () => step(3));
-  document.addEventListener('animalpad:reset', () => step(1));
+  // The launch panel appears once an animal has been accepted, and goes away again if it is dropped.
+  document.addEventListener('animalpad:staged', () => {
+    const p = $('launch');
+    const wasHidden = p.hidden;
+    p.hidden = false;
+    if (wasHidden) p.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  document.addEventListener('animalpad:reset', () => { $('launch').hidden = true; });
 
   // Idea buttons fill the box so a new visitor does not face a blank field. They are random each visit,
   // and "More ideas" draws a fresh set.

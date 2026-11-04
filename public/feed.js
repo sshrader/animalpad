@@ -47,15 +47,9 @@
     d.appendChild(bar);
 
     const meta = document.createElement('div'); meta.className = 'meta';
-    meta.textContent = c.migrated ? 'Moved to its trading pool' : c.curveFull ? 'Curve full' : pct + '% full · ' + Number(c.raisedSol).toFixed(2) + ' SOL';
+    meta.textContent = c.migrated ? 'Moved to its trading pool' : c.curveFull ? 'Curve full' : pct + '% full';
     d.appendChild(meta);
-    const when = document.createElement('div'); when.className = 'meta'; when.textContent = ago(Number(c.createdAt));
-    d.appendChild(when);
 
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'btn'; b.textContent = 'Trade';
-    b.addEventListener('click', () => document.dispatchEvent(new CustomEvent('animalpad:open-pool', { detail: { pool: c.pool } })));
-    d.appendChild(b);
     return d;
   }
 
@@ -73,7 +67,7 @@
   function drawCurve(list) {
     const box = $('curvebox'), svg = $('curve');
     if (!list.length) { box.hidden = true; return; }
-    box.hidden = false;
+    box.hidden = view !== 'curve';
     Array.from(svg.querySelectorAll(':scope > :not(title)')).forEach(n => n.remove());
     const L = 46, R = 22, T = 34, B = 34, W = 640, H = 280;
     const X = p => L + p * (W - L - R);
@@ -122,6 +116,19 @@
   }
 
   let lastList = [];
+  let view = 'cards';
+  try { if (localStorage.getItem('animalpad-view') === 'curve') view = 'curve'; } catch (e) { /* not saved */ }
+
+  function setView(v) {
+    view = v;
+    try { localStorage.setItem('animalpad-view', v); } catch (e) { /* still works */ }
+    $('v-cards').setAttribute('aria-pressed', v === 'cards' ? 'true' : 'false');
+    $('v-curve').setAttribute('aria-pressed', v === 'curve' ? 'true' : 'false');
+    $('feed').hidden = v === 'curve';
+    $('curvebox').hidden = v !== 'curve' || !lastList.length;
+  }
+  $('v-cards').addEventListener('click', () => setView('cards'));
+  $('v-curve').addEventListener('click', () => setView('curve'));
 
   async function load() {
     try {
@@ -133,6 +140,7 @@
       list.forEach(c => box.appendChild(card(c)));
       lastList = list;
       drawCurve(list);
+      setView(view);
       $('feed-note').textContent = list.length ? '' : 'No launches yet. Draw an animal above and be the first.';
     } catch (err) {
       $('feed-note').textContent = 'Could not load the latest launches. Try again in a moment.';
@@ -150,9 +158,9 @@
     .then(info => {
       const t = info && info.terms && info.terms.standard;
       if (!t || !Number.isFinite(t.totalPct) || !Number.isFinite(t.creatorSharePct)) return;
-      let text = 'Every trade on the curve pays a ' + t.totalPct + '% fee, and the creator earns ' + t.creatorSharePct + '% of it. Claim it with the wallet that launched the token.';
+      let text = 'Trades pay a ' + t.totalPct + '% fee and the creator earns ' + t.creatorSharePct + '% of it, claimed with the wallet that launched the coin.';
       if (Number.isFinite(info.thresholdSol)) { thresholdSol = info.thresholdSol; drawCurve(lastList); }
-      if (Number.isFinite(info.thresholdSol)) text += ' On this test version the curve fills at ' + info.thresholdSol + ' SOL.';
+      if (Number.isFinite(info.thresholdSol)) text += ' The curve fills at ' + info.thresholdSol + ' SOL.';
       $('fee-note-how').textContent = text;
     })
     .catch(() => { /* the generic sentence stays */ });
