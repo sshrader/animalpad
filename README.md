@@ -8,8 +8,9 @@ Describe an animal. AI draws the logo and suggests a name, ticker and descriptio
 
 1. **Describe:** the page sends a short description to the server. The server asks an AI provider for the image and for the name, ticker and description, so the API key never reaches the browser. The provider is Cloudflare Workers AI (`IMAGE_PROVIDER=cloudflare`) or OpenAI (the default).
 2. **Accept or reject:** you can edit the name and ticker. Reject draws a new animal from the same description.
-3. **Launch:** Phantom (set to Devnet) signs a transaction the server prepares. The token's metadata link points back at this site, so wallets and explorers show the picture.
-4. **Trade and claim:** paste a pool address to see how full the curve is, buy with devnet SOL, and claim creator fees with the launching wallet.
+3. **Add links (optional):** a creator can add their own website, X and Telegram. They are checked (websites must be https; X and Telegram take a handle or link), saved with the picture, and published in the token's metadata as `external_url`, `website`, `twitter`, `telegram` and `extensions`. They are locked once a launch is started for that picture, so a changed set is refused with a clear message and the public picture address can't be used to edit them.
+4. **Launch:** Phantom (set to Devnet) signs a transaction the server prepares. The token's metadata link points back at this site, so wallets and explorers show the picture.
+5. **Trade and claim:** paste a pool address to see how full the curve is, buy with devnet SOL, and claim creator fees with the launching wallet.
 
 ## Run it
 

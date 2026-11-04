@@ -334,7 +334,14 @@ function metadataFor(name, symbol, art, base) {
   const s = typeof symbol === 'string' ? symbol.replace(/^\$/, '').trim().toUpperCase() : '';
   if (!n || !SYMBOL_RE.test(s)) return null;
   const description = art && art.description ? cleanText(art.description, 200) : 'A devnet test token launched on AnimalPad.';
-  return { name: n, symbol: s, description, image: art && art.id && base ? base + '/art/' + art.id + '.' + (art.ext === 'jpg' ? 'jpg' : 'png') : '' };
+  const meta = { name: n, symbol: s, description, image: art && art.id && base ? base + '/art/' + art.id + '.' + (art.ext === 'jpg' ? 'jpg' : 'png') : '' };
+  // The creator's own links, in the field names wallets and explorers read.
+  const links = art && art.links && typeof art.links === 'object' ? art.links : {};
+  if (links.website) { meta.external_url = links.website; meta.website = links.website; }
+  if (links.twitter) meta.twitter = links.twitter;
+  if (links.telegram) meta.telegram = links.telegram;
+  if (links.website || links.twitter || links.telegram) meta.extensions = Object.assign({}, links.website ? { website: links.website } : {}, links.twitter ? { twitter: links.twitter } : {}, links.telegram ? { telegram: links.telegram } : {});
+  return meta;
 }
 
 module.exports = { createLauncher, loadPresets, metadataFor, cleanText };

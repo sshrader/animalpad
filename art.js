@@ -43,6 +43,42 @@ function clean(s, max) {
   return s.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+// Turns what a creator typed into the links we publish: { website, twitter, telegram }, each optional.
+// Returns null when anything is wrong, so nothing half-valid is stored. Websites must be plain https
+// addresses; X and Telegram accept a handle or a link and are rebuilt from the handle alone.
+function normalizeLinks(input) {
+  if (input === undefined || input === null) return {};
+  if (typeof input !== 'object' || Array.isArray(input)) return null;
+  const out = {};
+  const clean1 = v => (typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, '').trim() : null);
+  const web = clean1(input.website);
+  if (web === null && input.website !== undefined && input.website !== '') return null;
+  if (web) {
+    let u;
+    try { u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(web) ? web : 'https://' + web); } catch (e) { return null; }
+    const host = u.hostname;
+    if (u.protocol !== 'https:' || u.username || u.password || u.href.length > 200) return null;
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(host) || /^\d+(\.\d+){3}$/.test(host) || /^localhost$/i.test(host)) return null;
+    out.website = u.href;
+  }
+  const handle = (v, hosts, re) => {
+    const t = clean1(v);
+    if (t === null && v !== undefined && v !== '') return undefined;
+    if (!t) return '';
+    let h = t.replace(/^@/, '');
+    const m = /^(?:https?:\/\/)?(?:www\.)?([a-z.]+)\/@?([^/?#]+)\/?(?:[?#].*)?$/i.exec(t);
+    if (m) { if (hosts.indexOf(m[1].toLowerCase()) === -1) return undefined; h = m[2]; }
+    return re.test(h) ? h : undefined;
+  };
+  const x = handle(input.twitter, ['x.com', 'twitter.com'], /^[A-Za-z0-9_]{1,15}$/);
+  if (x === undefined) return null;
+  if (x) out.twitter = 'https://x.com/' + x;
+  const tg = handle(input.telegram, ['t.me', 'telegram.me'], /^[A-Za-z0-9_]{5,32}$/);
+  if (tg === undefined) return null;
+  if (tg) out.telegram = 'https://t.me/' + tg;
+  return out;
+}
+
 function blockedWord(text) {
   const t = text.toLowerCase();
   return BLOCKED.find(w => t.includes(w)) || null;
@@ -120,7 +156,7 @@ function createArt(opts) {
 
   function saveMeta(rec) {
     if (!diskOk) return;
-    try { writeAtomic(file(rec.id, '.json'), JSON.stringify({ id: rec.id, ext: rec.ext, name: rec.name, ticker: rec.ticker, description: rec.description, createdAt: rec.createdAt, pinned: rec.pinned })); }
+    try { writeAtomic(file(rec.id, '.json'), JSON.stringify({ id: rec.id, ext: rec.ext, name: rec.name, ticker: rec.ticker, description: rec.description, createdAt: rec.createdAt, pinned: rec.pinned, links: rec.links || {} })); }
     catch (err) { logger.error('Art save failed: ' + (err && err.message)); }
   }
 
@@ -147,7 +183,7 @@ function createArt(opts) {
   function keep(buf, text, ext) {
     const id = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16);
     const prior = record(id);
-    const rec = { id, ext, png: buf, name: text.name, ticker: text.ticker, description: text.description, createdAt: now(), pinned: Boolean(prior && prior.pinned) };
+    const rec = { id, ext, png: buf, name: text.name, ticker: text.ticker, description: text.description, createdAt: now(), pinned: Boolean(prior && prior.pinned), links: (prior && prior.links) || {} };
     store.delete(id);
     store.set(id, rec);
     while (store.size > maxStored) store.delete(store.keys().next().value);
@@ -168,7 +204,7 @@ function createArt(opts) {
       const ext = meta && (meta.ext === 'jpg' || meta.ext === 'png') ? meta.ext : 'png';
       const png = fs.readFileSync(file(id, '.' + ext));
       if (!meta || meta.id !== id || imageType(png) !== ext) return null;
-      const rec = { id, ext, png, name: meta.name, ticker: meta.ticker, description: meta.description, createdAt: meta.createdAt, pinned: Boolean(meta.pinned) };
+      const rec = { id, ext, png, name: meta.name, ticker: meta.ticker, description: meta.description, createdAt: meta.createdAt, pinned: Boolean(meta.pinned), links: meta.links && typeof meta.links === 'object' ? meta.links : {} };
       store.set(id, rec);
       while (store.size > maxStored) store.delete(store.keys().next().value);
       return rec;
@@ -176,6 +212,16 @@ function createArt(opts) {
   }
 
   function get(id) { const r = record(id); return r ? r.png : null; }
+
+  // Saves the creator's links with the picture. Only before launch: once a picture is pinned, its links are
+  // frozen, so someone who knows the (public) picture address cannot change a launched token's links.
+  function setLinks(id, links) {
+    const rec = record(id);
+    if (!rec || rec.pinned) return false;
+    rec.links = links;
+    saveMeta(rec);
+    return true;
+  }
 
   // Marks a picture as used by a launch, so it is kept for good.
   function pin(id) {
@@ -279,7 +325,7 @@ function createArt(opts) {
   }
 
   prune();
-  return { info, generate, get, record, pin, prune, provider, reason };
+  return { info, generate, get, record, pin, setLinks, prune, provider, reason };
 }
 
-module.exports = { createArt, ID_RE, blockedWord };
+module.exports = { createArt, ID_RE, blockedWord, normalizeLinks };

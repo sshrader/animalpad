@@ -406,3 +406,83 @@ test('random ideas: different each time, read naturally, and none of the thousan
     assert.equal(blockedWord(text), null, text);
   }
 });
+
+test('links: websites must be plain https addresses; X and Telegram take a handle or a link', () => {
+  const { normalizeLinks } = require('../art.js');
+  assert.deepEqual(normalizeLinks(undefined), {});
+  assert.deepEqual(normalizeLinks({}), {});
+  assert.deepEqual(normalizeLinks({ website: '', twitter: '', telegram: '' }), {});
+  assert.deepEqual(normalizeLinks({ website: 'https://yourcoin.xyz', twitter: '@yourcoin', telegram: 't.me/your_coin' }),
+    { website: 'https://yourcoin.xyz/', twitter: 'https://x.com/yourcoin', telegram: 'https://t.me/your_coin' });
+  assert.deepEqual(normalizeLinks({ website: 'yourcoin.xyz/path?x=1' }), { website: 'https://yourcoin.xyz/path?x=1' });
+  assert.deepEqual(normalizeLinks({ twitter: 'https://twitter.com/yourcoin/' }), { twitter: 'https://x.com/yourcoin' });
+  assert.deepEqual(normalizeLinks({ twitter: 'https://x.com/yourcoin?s=20' }), { twitter: 'https://x.com/yourcoin' });
+  // everything else is refused, never half-accepted
+  for (const bad of [
+    { website: 'http://yourcoin.xyz' }, { website: 'javascript:alert(1)' }, { website: 'data:text/html,hi' },
+    { website: 'https://user:pass@yourcoin.xyz' }, { website: 'https://localhost' }, { website: 'https://127.0.0.1' },
+    { website: 'https://nodot' }, { website: 'https://yourcoin.xyz/' + 'a'.repeat(300) }, { website: 5 }, { website: ['https://a.xyz'] },
+    { twitter: 'https://evil.example/yourcoin' }, { twitter: 'has space' }, { twitter: 'a'.repeat(16) }, { twitter: '<script>' },
+    { telegram: 'abc' }, { telegram: 'https://x.com/yourcoin' }, { telegram: 'ok_name', website: 'ftp://x.xyz' },
+    'string', 5, [], [{ website: 'https://a.xyz' }]
+  ]) assert.equal(normalizeLinks(bad), null, JSON.stringify(bad));
+  assert.deepEqual(normalizeLinks({ website: '‮https://yourcoin.xyz\u0000' }), { website: 'https://yourcoin.xyz/' });
+});
+
+test('metadata publishes the creator links in the fields wallets read', () => {
+  const links = { website: 'https://yourcoin.xyz/', twitter: 'https://x.com/yourcoin', telegram: 'https://t.me/your_coin' };
+  const m = metadataFor('Sleepy Heron', 'snooz', { id: 'a'.repeat(16), description: 'Naps.', links }, 'https://x.example');
+  assert.equal(m.external_url, links.website);
+  assert.equal(m.website, links.website);
+  assert.equal(m.twitter, links.twitter);
+  assert.equal(m.telegram, links.telegram);
+  assert.deepEqual(m.extensions, links);
+  const none = metadataFor('Sleepy Heron', 'snooz', { id: 'a'.repeat(16), description: 'Naps.' }, 'https://x.example');
+  assert.equal('twitter' in none || 'website' in none || 'extensions' in none, false);
+});
+
+test('server: links are checked, stored with the picture, published, and frozen once a launch starts', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'art-'));
+  const art = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: quiet, dir });
+  const id = (await art.generate({ animal: 'a heron' }, {})).body.id;
+  class PublicKey { constructor(v) { this.v = v; } toBase58() { return this.v; } }
+  const load = async () => ({
+    sdk: { DynamicBondingCurveClient: class { constructor() { this.creator = { createPool: async () => ({ partialSign() {}, serialize() { return Buffer.from('TX'); } }) }; } }, deriveDbcPoolAddress: () => new PublicKey('PoolAddress11111111111111111111111111111111') },
+    web3: { PublicKey, Keypair: { generate: () => ({ publicKey: new PublicKey('Mint1111111111111111111111111111111111111111') }) }, Connection: class { async getLatestBlockhash() { return { blockhash: 'B' }; } } },
+    spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') }
+  });
+  const launcher = createLauncher({ presets: PRESETS, load, logger: quiet, maxPerMinute: 1000 });
+  const body = links => JSON.stringify({ preset: 'standard', name: 'Sleepy Heron', symbol: 'SNOOZ', creator: CREATOR, art: id, links });
+  await withServer({ art, launcher }, async base => {
+    const post = links => fetch(base + '/api/launch/prepare', { method: 'POST', body: body(links) });
+    // bad links are refused and nothing is stored
+    assert.equal((await post({ website: 'http://nope.xyz' })).status, 400);
+    assert.equal((await post({ twitter: 'https://evil.example/x' })).status, 400);
+    assert.deepEqual(art.record(id).links, {});
+    assert.equal(art.record(id).pinned, false);
+    // links without a stored picture are refused
+    const noArt = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ preset: 'standard', name: 'X', symbol: 'X', creator: CREATOR, links: { website: 'https://a.xyz' } }) });
+    assert.equal(noArt.status, 400);
+    // good links are saved and published
+    const mine = { website: 'https://yourcoin.xyz', twitter: '@yourcoin', telegram: 'your_coin' };
+    assert.equal((await post(mine)).status, 200);
+    assert.equal(art.record(id).pinned, true);
+    const meta = await (await fetch(base + '/meta.json?n=Sleepy%20Heron&s=SNOOZ&i=' + id)).json();
+    assert.equal(meta.twitter, 'https://x.com/yourcoin');
+    assert.equal(meta.external_url, 'https://yourcoin.xyz/');
+    assert.equal(meta.extensions.telegram, 'https://t.me/your_coin');
+    // the same links again (a retry after declining in the wallet) are fine
+    assert.equal((await post(mine)).status, 200);
+    // different ones are refused, not silently ignored, and the published ones do not change
+    const changed = await post({ website: 'https://scam.example', twitter: '@yourcoin', telegram: 'your_coin' });
+    assert.equal(changed.status, 409);
+    assert.equal((await changed.json()).error, 'links_locked');
+    assert.equal((await post({})).status, 409);
+    const again = await (await fetch(base + '/meta.json?n=Sleepy%20Heron&s=SNOOZ&i=' + id)).json();
+    assert.equal(again.external_url, 'https://yourcoin.xyz/');
+    // and a restart keeps them
+    const fresh = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: quiet, dir });
+    assert.equal(fresh.record(id).links.twitter, 'https://x.com/yourcoin');
+    assert.equal(fresh.setLinks(id, { website: 'https://other.example/' }), false);
+  });
+});

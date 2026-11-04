@@ -6,7 +6,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { createLauncher, metadataFor } = require('./launch');
-const { createArt, ID_RE } = require('./art');
+const { createArt, ID_RE, normalizeLinks } = require('./art');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
@@ -57,6 +57,8 @@ function baseUrlFor(req) {
   return proto + '://' + host;
 }
 
+const sortKeys = o => Object.keys(o).sort().reduce((a, k) => { a[k] = o[k]; return a; }, {});
+
 function clientIp(req) {
   const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
   return fwd || (req.socket && req.socket.remoteAddress) || 'unknown';
@@ -96,10 +98,27 @@ function createApp(opts) {
       if (!launcher) return send(res, 503, JSON.stringify({ error: 'launch_unavailable' }), noStore);
       readJson(req, 4096).then(body => {
         if (!body) return send(res, 400, JSON.stringify({ error: 'bad_request' }), noStore);
+        // The creator's links are checked first, so nothing half-valid is stored or published.
+        let links = {};
+        if (action === 'prepare' && body.links !== undefined) {
+          links = normalizeLinks(body.links);
+          if (links === null || (Object.keys(links).length && !(typeof body.art === 'string' && art.record(body.art)))) {
+            return send(res, 400, JSON.stringify({ error: 'bad_links' }), noStore);
+          }
+          // Once a launch has been prepared for this picture its links are frozen. The same links again
+          // (a retry after declining in the wallet) are fine; different ones are refused, not ignored.
+          const rec = typeof body.art === 'string' ? art.record(body.art) : null;
+          if (rec && rec.pinned && JSON.stringify(sortKeys(links)) !== JSON.stringify(sortKeys(rec.links || {}))) {
+            return send(res, 409, JSON.stringify({ error: 'links_locked' }), noStore);
+          }
+        }
         return launcher[action](body, { ip: clientIp(req), baseUrl: baseUrlFor(req), hasArt: id => Boolean(art.get(id)) })
           .then(r => {
-            // A picture used by a launch is kept for good.
-            if (action === 'prepare' && r.status === 200 && typeof body.art === 'string') art.pin(body.art);
+            if (action === 'prepare' && r.status === 200 && typeof body.art === 'string') {
+              // Links are saved, then the picture is kept for good and its links are frozen.
+              if (Object.keys(links).length) art.setLinks(body.art, links);
+              art.pin(body.art);
+            }
             send(res, r.status, JSON.stringify(r.body), noStore);
           });
       }).catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));

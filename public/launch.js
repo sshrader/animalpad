@@ -74,14 +74,16 @@
     busy = true; render();
     $('dl-result').hidden = true;
     try {
+      const links = {};
+      [['website', 'l-web'], ['twitter', 'l-x'], ['telegram', 'l-tg']].forEach(p => { const v = $(p[1]).value.trim(); if (v) links[p[0]] = v; });
       say('Preparing the transaction…');
       const res = await fetch('/api/launch/prepare', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preset: staged.preset, name: staged.name, symbol: staged.symbol, art: staged.art, creator: wallet })
+        body: JSON.stringify({ preset: staged.preset, name: staged.name, symbol: staged.symbol, art: staged.art, creator: wallet, links: links })
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data || typeof data.transaction !== 'string') {
-        const why = { rate_limited: 'Too many launches. Wait a minute.', bad_name: 'That name is not allowed.', bad_symbol: 'Use 1 to 10 letters or digits for the ticker.', bad_art: 'That picture is no longer available. Make a new one.', uri_too_long: 'That name is too long.', launch_unavailable: 'Launching is not switched on for this site.' };
+        const why = { rate_limited: 'Too many launches. Wait a minute.', bad_name: 'That name is not allowed.', bad_symbol: 'Use 1 to 10 letters or digits for the ticker.', bad_art: 'That picture is no longer available. Make a new one.', bad_links: 'Check your links. A website needs https://, and X and Telegram take a handle like @yourcoin.', links_locked: 'Your links are locked because a launch was already started with this animal. Put the earlier links back, or draw a new animal to change them.', uri_too_long: 'That name is too long.', launch_unavailable: 'Launching is not switched on for this site.' };
         say((data && why[data.error]) || 'Could not prepare the launch. Try again.', true);
         busy = false; render();
         return;

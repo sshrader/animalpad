@@ -113,6 +113,9 @@ button { font: inherit; cursor: pointer; }
 @media (max-width: 820px) { .pair { grid-template-columns: 1fr; } }
 .hint { margin: 0; font-size: 14px; color: var(--muted); }
 .dl-status { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; min-height: 1.2em; }
+.links summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.links-body { display: grid; gap: 10px; margin-top: 10px; }
+.links-body label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .stack { display: grid; gap: 12px; min-width: 0; }
 .castrip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border: 2px solid var(--edge); border-radius: 12px; background: var(--soft); }
 .calab { font-size: 11px; font-weight: 700; color: var(--muted); }
@@ -190,6 +193,15 @@ details.trade[open] summary::before { transform: rotate(90deg); }
       <h2>Launch it</h2>
       <p class="hint" id="dl-hint">Accept an animal first. Then connect Phantom, set to Devnet, and launch it with test SOL.</p>
       <div id="devnet-launch" hidden class="stack">
+        <details class="links" id="links">
+          <summary>Add your website and socials (optional)</summary>
+          <div class="links-body">
+            <label>Website <input type="text" id="l-web" maxlength="200" autocomplete="off" placeholder="https://yourcoin.xyz" inputmode="url"></label>
+            <label>X <input type="text" id="l-x" maxlength="60" autocomplete="off" placeholder="@yourcoin or x.com/yourcoin"></label>
+            <label>Telegram <input type="text" id="l-tg" maxlength="60" autocomplete="off" placeholder="@yourcoin or t.me/yourcoin"></label>
+            <p class="hint">These go into the token's public details. They are locked once you start the launch. Use your own links only.</p>
+          </div>
+        </details>
         <div class="row">
           <button type="button" class="btn go" id="dl-connect">Connect wallet</button>
           <button type="button" class="btn go" id="dl-go" hidden>Launch on devnet</button>
