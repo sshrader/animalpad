@@ -37,7 +37,7 @@ test('fee sharing: platform and creator shares must add to 100%', () => {
   assert.equal(ok.keys[fixed].isWritable, true);
   const cfg = B.createSharingConfig({ mint, payer: user });
   assert.equal(cfg.data.length, 8);
-  assert.equal(cfg.keys.length, 10); // the three optional pool accounts are left off
+  assert.equal(cfg.keys.length, 13); // all 13 slots: the pool slot holds the program id when there is no pool
 });
 
 test('buy and sell use the 17-account v3 layout', () => {
