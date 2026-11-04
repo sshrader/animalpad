@@ -22,8 +22,9 @@
   const say = (t, bad) => { const s = $('status'); s.textContent = t; s.className = 'dl-status' + (bad ? ' bad' : ''); };
   const note = t => { const n = $('note'); n.textContent = t; n.hidden = !t; };
   const WHY = {
-    not_fee_claimer: 'This wallet is not the fee claimer, so it cannot claim.',
-    nothing_to_claim: 'Nothing to claim on that coin right now.',
+    split_not_set: 'That coin\'s fee split is not set, so it cannot be paid out here.',
+    migrated: 'That coin has moved to its trading pool; its fees are paid out on pump.fun.',
+    nothing_to_claim: 'Nothing to send out on that coin right now.',
     rate_limited: 'Too many requests. Wait a minute.',
     not_an_animalpad_pool: 'That pool is not an HatchPad coin.',
     fees_read_failed: 'The server could not read the fees from the chain. Public RPCs often refuse this lookup. Set LAUNCH_RPC_URL on the server to a dedicated RPC address (Helius or QuickNode), and check the server log for "Partner fee read failed".',
@@ -39,7 +40,7 @@
     const amt = document.createElement('div'); amt.className = 'amt';
     amt.textContent = fmt(p.waitingSol) + ' SOL waiting · ' + fmt(p.totalSol) + ' all-time';
     const btn = document.createElement('button');
-    btn.type = 'button'; btn.className = 'btn'; btn.textContent = 'Claim';
+    btn.type = 'button'; btn.className = 'btn'; btn.textContent = 'Send out';
     btn.disabled = busy || !(p.waitingSol > 0);
     btn.addEventListener('click', () => claim([p]));
     li.appendChild(who); li.appendChild(amt); li.appendChild(btn);
@@ -51,7 +52,7 @@
     $('connect').hidden = Boolean(wallet);
     $('who').textContent = wallet ? 'Connected ' + wallet.slice(0, 4) + '…' + wallet.slice(-4) : '';
     if (wallet && data && !allowed) {
-      note('This wallet is not the fee claimer, so it cannot claim. The fee claimer is ' + data.feeClaimers.join(', ') + '. Connect that wallet in Phantom.');
+      note('This is not the platform fee wallet. The platform fee wallet is ' + data.feeClaimers.join(', ') + '. Connect that wallet in Phantom.');
     } else if (!data || allowed) note('');
     $('body').hidden = !allowed;
     if (!allowed) return;
@@ -92,7 +93,7 @@
     try {
       for (const p of list) {
         if (!(p.waitingSol > 0)) continue;
-        say('Preparing the claim for ' + (names[p.pool] || p.pool.slice(0, 6) + '…') + '…');
+        say('Preparing the payout for ' + (names[p.pool] || p.pool.slice(0, 6) + '…') + '…');
         const res = await fetch('/api/admin/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pool: p.pool, claimer: wallet }) });
         const body = await res.json().catch(() => null);
         if (!res.ok || !body || typeof body.transaction !== 'string') {
@@ -100,14 +101,14 @@
           say(WHY[body && body.error] || 'Could not prepare that claim. Try again.', true);
           break;
         }
-        say('Approve the claim in your wallet…');
+        say('Approve the payout in your wallet…');
         const sig = await W.signAndSend(body.transaction);
         say('Sent. Waiting for the network to confirm…');
         const state = await W.confirm(sig);
         if (state !== 'confirmed') { say(state === 'failed' ? 'A claim failed on-chain. Refresh and try again.' : 'Not confirmed yet. Refresh in a minute.', true); break; }
         claimed++; total += body.waitingSol || 0;
       }
-      if (claimed) say('Claimed ✓ ' + claimed + ' coin' + (claimed === 1 ? '' : 's') + ', about ' + fmt(total) + ' SOL, sent to your wallet.');
+      if (claimed) say('Sent ✓ ' + claimed + ' coin' + (claimed === 1 ? '' : 's') + ', about ' + fmt(total) + ' SOL, paid out to the creator and platform wallets.');
     } catch (err) {
       const m = err && err.message ? String(err.message) : '';
       say(err && err.code === 'no_wallet' ? W.NO_WALLET : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.' : 'The claim did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet.' : 'Devnet.'), true);

@@ -1,26 +1,17 @@
 {
   "name": "hatchpad-devnet",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Devnet spike: Meteora Dynamic Bonding Curve lifecycle for HatchPad. Not used by the website.",
+  "description": "Command-line helpers for HatchPad: throwaway keys, a payer wallet, and a free simulate-only check of the pump.fun transactions. Not used by the website.",
   "scripts": {
     "keys": "node 00-keys.mjs",
-    "config": "node 01-create-config.mjs",
-    "pool": "node 02-create-pool.mjs",
-    "buy": "node 03-buy.mjs",
-    "migrate": "node 04-migrate.mjs",
-    "claim": "node 05-claim-fees.mjs",
-    "presets": "node 06-create-presets.mjs",
-    "inspect": "node 07-inspect.mjs"
+    "check": "node 11-check-pump.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@meteora-ag/dynamic-bonding-curve-sdk": "2.0.0",
-    "@solana/spl-token": "^0.4.9",
-    "@solana/web3.js": "^1.98.0",
-    "bn.js": "^5.2.1"
+    "@solana/web3.js": "^1.98.0"
   }
 }

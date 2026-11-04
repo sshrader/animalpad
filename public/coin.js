@@ -112,14 +112,14 @@
     const f = add(body, 'dl', undefined, 'facts');
     function fact(label, node) { add(f, 'dt', label); const dd = add(f, 'dd'); if (typeof node === 'string') dd.textContent = node; else dd.appendChild(node); }
     startChat(box, c);
-    const terms = cfg && cfg.terms && cfg.terms.standard;
-    if (terms && Number.isFinite(terms.totalPct) && Number.isFinite(terms.creatorSharePct)) {
-      fact('Trading fee', terms.totalPct + '% of every trade. The creator earns ' + terms.creatorSharePct + '% of it.');
+    const sp = cfg && cfg.split;
+    if (sp && Number.isFinite(sp.creatorPct) && Number.isFinite(sp.platformPct)) {
+      fact('Creator fees', 'Trades on this coin pay a creator fee. ' + sp.creatorPct + '% goes to the creator and ' + sp.platformPct + '% to HatchPad.');
     }
     if (Number(c.devBuySol) > 0) fact('Creator first buy', 'The creator bought ' + Number(c.devBuySol) + ' SOL worth in the launch transaction, before anyone else could.');
     fact('Launched', when(c.createdAt));
     const ex = a => 'https://explorer.solana.com/address/' + encodeURIComponent(a) + AnimalNet.suffix;
-    [['Token address (CA)', c.mint], ['Pool address', c.pool], ['Creator wallet', c.creator]].forEach(x => {
+    [['Token address (CA)', c.mint], ['Creator wallet', c.creator]].forEach(x => {
       if (!B58.test(x[1] || '')) return;
       const s = document.createElement('span');
       link(s, ex(x[1]), x[1]);
@@ -127,51 +127,52 @@
     });
   }
 
-  // Creator fees: anyone can see the amount; only the wallet that launched the coin can claim it.
+  // Creator fees: anyone can see the amount and anyone can send it out. It always goes to the wallets in the
+  // coin's fee split (the creator and HatchPad), never to whoever pressed the button.
   function startFees(parent, c) {
     const W = window.AnimalWallet;
     const row = add(parent, 'div', undefined, 'cp-fees');
     const text = add(row, 'span', 'Checking creator fees…', 'hint');
-    const btn = add(row, 'button', 'Claim creator fees', 'btn'); btn.type = 'button'; btn.hidden = true;
+    const btn = add(row, 'button', 'Send out fees', 'btn'); btn.type = 'button'; btn.hidden = true;
     const status = add(parent, 'p', '', 'hint'); status.setAttribute('role', 'status');
     let info = null, busy = false;
     const WHY = {
-      not_creator: 'Only the wallet that launched this coin can claim its creator fees. Switch to that wallet.',
-      nothing_to_claim: 'There are no creator fees to claim yet.',
+      nothing_to_claim: 'There are no creator fees to send out yet.',
+      split_not_set: 'This coin\'s fee split has not been set yet.',
+      migrated: 'This coin has moved to its trading pool; its fees are paid out on pump.fun.',
       rate_limited: 'Too many requests. Wait a minute.'
     };
     function draw() {
       if (!info) return;
-      const mine = Boolean(W && W.address && W.address === info.creator);
-      text.textContent = 'Creator fees: ' + info.unclaimedSol.toFixed(6) + ' SOL unclaimed' + (info.claimedSol ? ', ' + info.claimedSol.toFixed(6) + ' claimed' : '') +
-        (W && W.address && !mine ? ' · connect the creator wallet to claim' : '');
+      text.textContent = 'Creator fees waiting: ' + info.pendingSol.toFixed(6) + ' SOL' +
+        (info.splitOk ? ' · split ' + info.creatorPct + '% creator, ' + info.platformPct + '% HatchPad' : ' · fee split not set yet');
       btn.hidden = false;
-      btn.disabled = busy || !mine || !(info.unclaimedSol > 0);
+      btn.disabled = busy || !info.splitOk || !(info.pendingSol > 0.00001);
     }
     function load() {
       return fetch('/api/launch/fees?address=' + encodeURIComponent(c.pool), { headers: { Accept: 'application/json' }, cache: 'no-store' })
         .then(r => (r.ok ? r.json() : null))
-        .then(b => { if (b && typeof b.unclaimedSol === 'number') { info = b; draw(); } else text.textContent = 'Creator fees could not be read right now.'; })
+        .then(b => { if (b && typeof b.pendingSol === 'number') { info = b; draw(); } else text.textContent = 'Creator fees could not be read right now.'; })
         .catch(() => { text.textContent = 'Creator fees could not be read right now.'; });
     }
     btn.addEventListener('click', async () => {
       if (!info || busy || !W) return;
-      busy = true; draw(); status.textContent = 'Preparing the claim…';
+      busy = true; draw(); status.textContent = 'Preparing the payout…';
       try {
         const who = W.address || await W.connect();
-        const res = await fetch('/api/launch/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pool: c.pool, creator: who }) });
+        const res = await fetch('/api/launch/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pool: c.pool, payer: who }) });
         const data = await res.json().catch(() => null);
-        if (!res.ok || !data || typeof data.transaction !== 'string') { status.textContent = WHY[data && data.error] || 'Could not prepare the claim. Try again.'; busy = false; draw(); return; }
-        status.textContent = 'Approve the claim in your wallet…';
+        if (!res.ok || !data || typeof data.transaction !== 'string') { status.textContent = WHY[data && data.error] || 'Could not prepare the payout. Try again.'; busy = false; draw(); return; }
+        status.textContent = 'Approve the payout in your wallet…';
         const sig = await W.signAndSend(data.transaction);
         status.textContent = 'Sent. Waiting for the network to confirm…';
         const state = await W.confirm(sig);
-        if (state === 'confirmed') { busy = false; await load(); status.textContent = 'Claimed ✓ The fees were sent to your wallet.'; }
-        else if (state === 'failed') status.textContent = 'The claim failed on-chain. Make sure the wallet has a little SOL for the network fee, then try again.';
+        if (state === 'confirmed') { busy = false; await load(); status.textContent = 'Sent ✓ The fees were paid to the creator and HatchPad wallets.'; }
+        else if (state === 'failed') status.textContent = 'The payout failed on-chain. Make sure the wallet has a little SOL for the network fee, then try again.';
         else status.textContent = 'Not confirmed yet. Reload in a minute to see the result.';
       } catch (err) {
         const m = err && err.message ? String(err.message) : '';
-        status.textContent = err && err.code === 'no_wallet' ? W.NO_WALLET : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.' : 'The claim did not go through. Check that the wallet has a little SOL for the network fee.';
+        status.textContent = err && err.code === 'no_wallet' ? W.NO_WALLET : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.' : 'The payout did not go through. Check that the wallet has a little SOL for the network fee.';
       }
       busy = false; draw();
     });

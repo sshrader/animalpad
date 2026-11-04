@@ -8,6 +8,7 @@ const { createLaunches } = require('../launches.js');
 const { createLauncher } = require('../launch.js');
 const { createArt } = require('../art.js');
 const { createApp } = require('../server.js');
+const { fakeLoad } = require('./fakechain.js');
 
 const quiet = { log() {}, error() {} };
 const CREATOR = 'CFyapVaq8njp4N6Qqrw7XETB89GuLkLwHH6huUtcY4Ws';
@@ -120,25 +121,19 @@ async function withServer(opts, fn) {
 }
 
 test('server: /api/launches lists launches, and a prepared launch is recorded and checked for blocked names', async () => {
-  const CONFIG = 'CAAYwzGN4XjofFLZt4iwhMw9L8pH9BY379YjLUo3Qq8o';
-  const PRESETS = { network: 'devnet', presets: { standard: { config: CONFIG, totalPct: 1, creatorSharePct: 40 } } };
-  const POOL = 'FWUDZaaBrNJDGVzyTnKRhLgrjUeWU4mJdUvfBUmkxWZa', MINT = 'DojAhuYsxpdukJMuhZX7MYML2967tBCGfJPeByxs5DQX';
-  class PublicKey { constructor(v) { this.v = v; } toBase58() { return this.v; } }
-  const load = async () => ({
-    sdk: { DynamicBondingCurveClient: class { constructor() { this.creator = { createPool: async () => ({ partialSign() {}, serialize() { return Buffer.from('TX'); } }) }; } }, deriveDbcPoolAddress: () => new PublicKey(POOL) },
-    web3: { PublicKey, Keypair: { generate: () => ({ publicKey: new PublicKey(MINT) }) }, Connection: class { async getLatestBlockhash() { return { blockhash: 'B' }; } } },
-    spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') }
-  });
-  const launcher = createLauncher({ presets: PRESETS, load, logger: quiet, maxPerMinute: 1000 });
+  const load = fakeLoad({});
+  const launcher = createLauncher({ platformWallet: 'Aj7pGhuAzG3Dy1CzQRiVk1YwPHjc5T7zUFfAAkVxsv4n', load, logger: quiet, maxPerMinute: 1000 });
   const onChain = new Set();
   const launches = createLaunches({ inspect: chain(onChain), logger: quiet, listTtlMs: 0 });
   const art = createArt({ logger: quiet });
   await withServer({ art, launcher, launches }, async base => {
     assert.deepEqual(await (await fetch(base + '/api/launches')).json(), { launches: [] });
-    const post = name => fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ preset: 'standard', name, symbol: 'SNOOZ', creator: CREATOR }) });
+    const post = name => fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ name, symbol: 'SNOOZ', creator: CREATOR }) });
     assert.equal((await post('Pikachu Coin')).status, 400);
     assert.equal(launches.size(), 0);
-    assert.equal((await post('Sleepy Heron')).status, 200);
+    const made = await post('Sleepy Heron');
+    assert.equal(made.status, 200);
+    const POOL = (await made.json()).pool;
     assert.equal(launches.size(), 1);
     // prepared but not on-chain yet: not listed
     assert.deepEqual((await (await fetch(base + '/api/launches')).json()).launches, []);

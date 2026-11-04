@@ -34,7 +34,7 @@
 
   <section class="panel stack2" aria-labelledby="fees-h">
     <h2 id="fees-h">Platform fees</h2>
-    <p class="hint">Trading fees the platform has earned on every coin and not yet claimed. Only the fee claimer wallet can claim them. This page holds no keys: it asks the server to prepare each claim and your wallet signs it.</p>
+    <p class="hint">HatchPad's share of the creator fees waiting on every coin. Sending them out also pays the launcher their share; the payout always goes to the two wallets in the coin's fee split. This page holds no keys: it asks the server to prepare each payout and your wallet signs it and pays the network fee.</p>
     <div class="row">
       <button type="button" class="btn go" id="connect">Connect wallet</button>
       <span class="dl-status" id="who" role="status"></span>
@@ -43,7 +43,7 @@
     <div id="body" hidden class="stack">
       <div><span class="big" id="total">0</span> <span class="hint">SOL waiting across <span id="count">0</span> coins</span></div>
       <div class="row">
-        <button type="button" class="btn go" id="claim-all">Claim all</button>
+        <button type="button" class="btn go" id="claim-all">Send out all</button>
         <button type="button" class="btn" id="reload">Refresh</button>
       </div>
       <ul class="fees" id="list"></ul>

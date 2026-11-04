@@ -24,9 +24,9 @@
   }
 
   const WHY = {
-    bad_pool: 'That is not a valid pool address.',
-    pool_not_found: 'No pool found at that address on this network.',
-    not_an_animalpad_pool: 'That pool was not launched through HatchPad.',
+    bad_pool: 'That is not a valid coin address.',
+    pool_not_found: 'No coin found at that address on this network.',
+    not_an_animalpad_pool: 'That coin was not launched through HatchPad.',
     rate_limited: 'Too many requests. Wait a minute.',
     bad_amount: 'Enter an amount between 0.01 and 5 SOL.',
     curve_full: 'The curve is full and moving to its DEX pool, so there is nothing left to buy here.',
@@ -73,11 +73,9 @@
   function renderFees() {
     $('t-fees').hidden = !feeInfo;
     if (!feeInfo) return;
-    const mine = W.address && W.address === feeInfo.creator;
-    $('t-fee-text').textContent = 'Creator fees: ' + feeInfo.unclaimedSol.toFixed(6) + ' SOL unclaimed' +
-      (feeInfo.claimedSol ? ', ' + feeInfo.claimedSol.toFixed(6) + ' claimed' : '') +
-      (W.address && !mine ? ' · connected wallet is not the creator' : '');
-    $('t-claim').disabled = busy || !(feeInfo.unclaimedSol > 0);
+    $('t-fee-text').textContent = 'Creator fees waiting: ' + feeInfo.pendingSol.toFixed(6) + ' SOL' +
+      (feeInfo.splitOk ? ' · split ' + feeInfo.creatorPct + '% creator, ' + feeInfo.platformPct + '% HatchPad' : ' · fee split not set yet');
+    $('t-claim').disabled = busy || !feeInfo.splitOk || !(feeInfo.pendingSol > 0.00001);
   }
 
   async function loadFees(address) {
@@ -86,7 +84,7 @@
     try {
       const res = await fetch('/api/launch/fees?address=' + encodeURIComponent(address), { headers: { Accept: 'application/json' } });
       const body = await res.json().catch(() => null);
-      if (res.ok && body && typeof body.unclaimedSol === 'number') feeInfo = body;
+      if (res.ok && body && typeof body.pendingSol === 'number') feeInfo = body;
     } catch (err) { /* the fees line just stays hidden */ }
     renderFees();
   }
@@ -98,30 +96,30 @@
     try {
       say('Connecting your wallet…');
       const who = W.address || await W.connect();
-      say('Preparing the claim…');
+      say('Preparing the payout…');
       const res = await fetch('/api/launch/claim', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pool: pool.address, creator: who })
+        body: JSON.stringify({ pool: pool.address, payer: who })
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data || typeof data.transaction !== 'string') {
         say('', false);
-        fail(WHY[data && data.error] || 'Could not prepare the claim. Try again.');
+        fail(WHY[data && data.error] || 'Could not prepare the payout. Try again.');
         busy = false; renderInfo(); renderFees();
         return;
       }
-      say('Approve the claim in your wallet…');
+      say('Approve the payout in your wallet…');
       const signature = await W.signAndSend(data.transaction);
       say('Sent. Waiting for the network to confirm…');
       const state = await W.confirm(signature);
-      if (state === 'confirmed') { busy = false; await loadFees(pool.address); say('Claimed ✓ Creator fees were sent to your wallet.'); }
-      else if (state === 'failed') { say('', false); fail('The claim failed on-chain. Reload the pool and try again.'); }
+      if (state === 'confirmed') { busy = false; await loadFees(pool.address); say('Sent ✓ Creator fees were paid to the creator and HatchPad wallets.'); }
+      else if (state === 'failed') { say('', false); fail('The payout failed on-chain. Reload the coin and try again.'); }
       else say('Not confirmed yet. Reload the pool in a minute to see the result.', true);
     } catch (err) {
       const m = err && err.message ? String(err.message) : '';
       if (err && err.code === 'no_wallet') { say('', false); fail(W.NO_WALLET); }
       else if (/reject|denied|cancel/i.test(m)) say('You declined the transaction.', true);
-      else { say('', false); fail('The claim did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet.' : 'Devnet.')); }
+      else { say('', false); fail('The payout did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet.' : 'Devnet.')); }
     }
     busy = false; renderInfo(); renderFees();
   }

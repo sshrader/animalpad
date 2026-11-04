@@ -119,16 +119,13 @@
   setInterval(() => { if (!document.hidden) load(); }, 60000);
   load();
 
-  // Fee wording straight from the server's presets, so it can never disagree with what is deployed.
+  // Fee wording straight from the server's settings, so it can never disagree with what is deployed.
   fetch('/api/launch/config', { headers: { Accept: 'application/json' } })
     .then(r => r.json())
     .then(info => {
-      const t = info && info.terms && info.terms.standard;
-      if (!t || !Number.isFinite(t.totalPct) || !Number.isFinite(t.creatorSharePct)) return;
-      let text = 'Trades pay a ' + t.totalPct + '% fee and the creator earns ' + t.creatorSharePct + '% of it, claimed with the wallet that launched the coin.';
-      if (Number.isFinite(info.thresholdSol)) { thresholdSol = info.thresholdSol; drawCurve(lastList); }
-      if (Number.isFinite(info.thresholdSol)) text += ' The curve fills at ' + info.thresholdSol + ' SOL.';
-      $('fee-note-how').textContent = text;
+      const t = info && info.split;
+      if (!t || !Number.isFinite(t.creatorPct) || !Number.isFinite(t.platformPct)) return;
+      $('fee-note-how').textContent = 'Every trade pays a creator fee. ' + t.creatorPct + '% of it goes to the wallet that launched the coin and ' + t.platformPct + '% to HatchPad. Anyone can send the fees out; they always go to those two wallets.';
     })
     .catch(() => { /* the generic sentence stays */ });
 })();

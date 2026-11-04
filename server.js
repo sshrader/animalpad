@@ -154,7 +154,7 @@ function createApp(opts) {
     if (pathname === '/api/admin/fees' && (req.method === 'GET' || req.method === 'HEAD')) {
       const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' });
       if (!launcher) return send(res, 503, JSON.stringify({ error: 'launch_unavailable' }), noStore);
-      launcher.partnerFees({ ip: clientIp(req) }).then(r => send(res, r.status, req.method === 'HEAD' ? '' : JSON.stringify(r.body), noStore))
+      (launches ? launches.list().then(items => items.map(i => i.pool)) : Promise.resolve([])).then(mints => launcher.partnerFees({ ip: clientIp(req), mints })).then(r => send(res, r.status, req.method === 'HEAD' ? '' : JSON.stringify(r.body), noStore))
         .catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
       return;
     }
@@ -163,7 +163,7 @@ function createApp(opts) {
       if (!launcher) return send(res, 503, JSON.stringify({ error: 'launch_unavailable' }), noStore);
       readJson(req, 1024).then(body => {
         if (!body) return send(res, 400, JSON.stringify({ error: 'bad_request' }), noStore);
-        return launcher.partnerClaim(body, { ip: clientIp(req) }).then(r => send(res, r.status, JSON.stringify(r.body), noStore));
+        return launcher.distribute({ pool: body.pool, payer: body.claimer }, { ip: clientIp(req) }).then(r => send(res, r.status, JSON.stringify(r.body), noStore));
       }).catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
       return;
     }
@@ -183,7 +183,7 @@ function createApp(opts) {
       return;
     }
 
-    const POSTS = { '/api/launch/prepare': 'prepare', '/api/launch/buy': 'buy', '/api/launch/claim': 'claim' };
+    const POSTS = { '/api/launch/prepare': 'prepare', '/api/launch/step': 'step', '/api/launch/buy': 'buy', '/api/launch/claim': 'distribute' };
     if (req.method === 'POST' && Object.prototype.hasOwnProperty.call(POSTS, pathname)) {
       const action = POSTS[pathname];
       const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store', Connection: 'close' });
@@ -210,10 +210,12 @@ function createApp(opts) {
         if (action === 'prepare' && blockedWord(String(body.name || '') + ' ' + String(body.symbol || ''))) {
           return send(res, 400, JSON.stringify({ error: 'blocked_name' }), noStore);
         }
+        // The payout can be sent by any wallet, so the page's "creator" field is just the wallet that will pay the network fee.
+        if (action === 'distribute' && body.payer === undefined) body.payer = body.creator;
         return launcher[action](body, { ip: clientIp(req), baseUrl: baseUrlFor(req), founder: founder, hasArt: id => Boolean(art.get(id)) })
           .then(r => {
             if (action === 'prepare' && r.status === 200 && launches) {
-              launches.record({ pool: r.body.pool, mint: r.body.mint, name: cleanText(body.name, 32), symbol: String(body.symbol || '').replace(/^\$/, '').trim().toUpperCase(), creator: body.creator, art: body.art, preset: body.preset, devBuySol: r.body.firstBuySol });
+              launches.record({ pool: r.body.pool, mint: r.body.mint, name: cleanText(body.name, 32), symbol: String(body.symbol || '').replace(/^\$/, '').trim().toUpperCase(), creator: body.creator, art: body.art, preset: '', devBuySol: r.body.firstBuySol });
             }
             if (action === 'prepare' && r.status === 200 && typeof body.art === 'string') {
               // Links are saved, then the picture is kept for good and its links are frozen.
@@ -232,7 +234,7 @@ function createApp(opts) {
 
     // Whether launching is switched on, so the page knows whether to offer it.
     if (pathname === '/api/launch/config') {
-      const info = launcher ? launcher.info() : { enabled: false, cluster: 'devnet', presets: [] };
+      const info = launcher ? launcher.info() : { enabled: false, cluster: 'devnet' };
       return send(res, 200, JSON.stringify(info), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' }));
     }
 
@@ -354,7 +356,9 @@ if (require.main === module) {
   const launcher = createLauncher({
     cluster,
     allowMainnet: env('MAINNET_ENABLED') === 'yes',
-    presetsFile: path.join(__dirname, 'devnet', cluster === 'devnet' ? 'presets.json' : 'presets.' + cluster + '.json'),
+    platformWallet: env('PLATFORM_FEE_WALLET'),
+    platformSharePct: env('PLATFORM_SHARE_PCT') || undefined,
+    priorityMicroLamports: env('PRIORITY_FEE_MICROLAMPORTS') === '' ? undefined : Number(env('PRIORITY_FEE_MICROLAMPORTS')),
     rpcUrl: process.env.LAUNCH_RPC_URL || undefined
   });
   const launchesFile = env('LAUNCHES_FILE') || (dataDir ? path.join(dataDir, cluster === 'devnet' ? 'launches.json' : 'launches.' + cluster + '.json') : '');
@@ -387,7 +391,7 @@ if (require.main === module) {
   const server = createApp({ art, launcher, launches, founder, verifier: createVerifier({ secret: verifySecret || undefined }) });
   server.listen(PORT, '0.0.0.0', () => {
     console.log('HatchPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio OFF: ' + art.reason + '; provider ' + art.provider + ')') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
-      (launcher.info().enabled ? ' (' + cluster + ' launch on)' : ' (' + cluster + ' launch off: no matching presets file in devnet/)') + (launchesFile ? ' (launch list saved in ' + launchesFile + ')' : ' (launch list in memory only)'));
+      (launcher.info().enabled ? ' (' + cluster + ' launch on)' : ' (' + cluster + ' launch off: set PLATFORM_FEE_WALLET)') + (launchesFile ? ' (launch list saved in ' + launchesFile + ')' : ' (launch list in memory only)'));
   });
   // Railway stops containers with SIGTERM; close cleanly.
   process.on('SIGTERM', () => {

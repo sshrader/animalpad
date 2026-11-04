@@ -2,7 +2,7 @@
   "name": "hatchpad",
   "version": "0.1.0",
   "private": true,
-  "description": "Describe an animal, get a logo, name and description from AI, approve it, and launch it as a token on a Solana bonding curve (devnet).",
+  "description": "Describe an animal, get a logo, name and description from AI, approve it, and launch it as a token on a pump.fun bonding curve.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,9 +12,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@meteora-ag/dynamic-bonding-curve-sdk": "2.0.0",
-    "@solana/spl-token": "^0.4.13",
-    "@solana/web3.js": "^1.98.0",
-    "bn.js": "^5.2.1"
+    "@solana/web3.js": "^1.98.0"
   }
 }

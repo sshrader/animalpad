@@ -7,9 +7,9 @@ const { createApp } = require('../server.js');
 
 const quiet = { log() {}, error() {} };
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(300, 7)]);
-const CONFIG = 'CAAYwzGN4XjofFLZt4iwhMw9L8pH9BY379YjLUo3Qq8o';
 const CREATOR = 'CFyapVaq8njp4N6Qqrw7XETB89GuLkLwHH6huUtcY4Ws';
-const PRESETS = { network: 'devnet', presets: { standard: { config: CONFIG, totalPct: 1, creatorSharePct: 40 } } };
+const PLATFORM = 'Aj7pGhuAzG3Dy1CzQRiVk1YwPHjc5T7zUFfAAkVxsv4n';
+const { fakeLoad } = require('./fakechain.js');
 
 // A fake OpenAI. `opt` can break pieces of it.
 function fakeOpenAI(opt) {
@@ -130,22 +130,17 @@ test('metadata carries the picture and description when there is a stored animal
 });
 
 test('prepare puts the picture id in the metadata link and refuses pictures that do not exist', async () => {
-  const calls = [];
-  class PublicKey { constructor(v) { this.v = v; } toBase58() { return this.v; } }
-  const load = async () => ({
-    sdk: { DynamicBondingCurveClient: class { constructor() { this.creator = { createPool: async p => { calls.push(p); return { partialSign() {}, serialize() { return Buffer.from('TX'); } }; } }; } }, deriveDbcPoolAddress: () => new PublicKey('PoolAddress11111111111111111111111111111111') },
-    web3: { PublicKey, Keypair: { generate: () => ({ publicKey: new PublicKey('Mint1111111111111111111111111111111111111111') }) }, Connection: class { async getLatestBlockhash() { return { blockhash: 'B' }; } } },
-    spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') }
-  });
-  const l = createLauncher({ presets: PRESETS, load, logger: quiet });
+  const load = fakeLoad({});
+  const l = createLauncher({ platformWallet: PLATFORM, load, logger: quiet });
   const id = 'b'.repeat(16);
   const ctx = { ip: '9.9.9.9', baseUrl: 'https://animal.example', hasArt: x => x === id };
-  const ok = await l.prepare({ preset: 'standard', name: 'Sleepy Heron', symbol: 'SNOOZ', creator: CREATOR, art: id }, ctx);
+  const ok = await l.prepare({ name: 'Sleepy Heron', symbol: 'SNOOZ', creator: CREATOR, art: id }, ctx);
   assert.equal(ok.status, 200);
-  assert.equal(calls[0].uri, 'https://animal.example/meta.json?n=Sleepy%20Heron&s=SNOOZ&i=' + id);
-  assert.equal((await l.prepare({ preset: 'standard', name: 'A', symbol: 'A', creator: CREATOR, art: 'c'.repeat(16) }, ctx)).body.error, 'bad_art');
-  assert.equal((await l.prepare({ preset: 'standard', name: 'A', symbol: 'A', creator: CREATOR, art: '../etc' }, ctx)).body.error, 'bad_art');
-  assert.equal((await l.prepare({ preset: 'standard', name: 'A', symbol: 'A', creator: CREATOR, art: id }, { ip: '8.8.8.8', baseUrl: 'https://animal.example' })).body.error, 'bad_art');
+  const created = JSON.parse(Buffer.from(ok.body.transaction, 'base64').toString()).instructions.find(i => i.keys === 16);
+  assert.ok(Buffer.from(created.data, 'hex').toString('latin1').includes('https://animal.example/meta.json?n=Sleepy%20Heron&s=SNOOZ&i=' + id));
+  assert.equal((await l.prepare({ name: 'A', symbol: 'A', creator: CREATOR, art: 'c'.repeat(16) }, ctx)).body.error, 'bad_art');
+  assert.equal((await l.prepare({ name: 'A', symbol: 'A', creator: CREATOR, art: '../etc' }, ctx)).body.error, 'bad_art');
+  assert.equal((await l.prepare({ name: 'A', symbol: 'A', creator: CREATOR, art: id }, { ip: '8.8.8.8', baseUrl: 'https://animal.example' })).body.error, 'bad_art');
 });
 
 async function withServer(opts, fn) {
@@ -247,19 +242,14 @@ test('server: a launch pins its picture so it outlives the clean-up', async () =
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'art-'));
   const art = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: quiet, dir });
   const id = (await art.generate({ animal: 'a heron' }, {})).body.id;
-  class PublicKey { constructor(v) { this.v = v; } toBase58() { return this.v; } }
-  const load = async () => ({
-    sdk: { DynamicBondingCurveClient: class { constructor() { this.creator = { createPool: async () => ({ partialSign() {}, serialize() { return Buffer.from('TX'); } }) }; } }, deriveDbcPoolAddress: () => new PublicKey('PoolAddress11111111111111111111111111111111') },
-    web3: { PublicKey, Keypair: { generate: () => ({ publicKey: new PublicKey('Mint1111111111111111111111111111111111111111') }) }, Connection: class { async getLatestBlockhash() { return { blockhash: 'B' }; } } },
-    spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') }
-  });
-  const launcher = createLauncher({ presets: PRESETS, load, logger: quiet });
+  const load = fakeLoad({});
+  const launcher = createLauncher({ platformWallet: PLATFORM, load, logger: quiet });
   await withServer({ art, launcher }, async base => {
     assert.equal(art.record(id).pinned, false);
-    const res = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ preset: 'standard', name: 'Sleepy Heron', symbol: 'SNOOZ', creator: CREATOR, art: id }) });
+    const res = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ name: 'Sleepy Heron', symbol: 'SNOOZ', creator: CREATOR, art: id }) });
     assert.equal(res.status, 200);
     assert.equal(art.record(id).pinned, true);
-    const bad = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ preset: 'standard', name: 'X', symbol: 'X', creator: CREATOR, art: 'd'.repeat(16) }) });
+    const bad = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ name: 'X', symbol: 'X', creator: CREATOR, art: 'd'.repeat(16) }) });
     assert.equal(bad.status, 400);
   });
 });
@@ -445,14 +435,9 @@ test('server: links are checked, stored with the picture, published, and frozen 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'art-'));
   const art = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: quiet, dir });
   const id = (await art.generate({ animal: 'a heron' }, {})).body.id;
-  class PublicKey { constructor(v) { this.v = v; } toBase58() { return this.v; } }
-  const load = async () => ({
-    sdk: { DynamicBondingCurveClient: class { constructor() { this.creator = { createPool: async () => ({ partialSign() {}, serialize() { return Buffer.from('TX'); } }) }; } }, deriveDbcPoolAddress: () => new PublicKey('PoolAddress11111111111111111111111111111111') },
-    web3: { PublicKey, Keypair: { generate: () => ({ publicKey: new PublicKey('Mint1111111111111111111111111111111111111111') }) }, Connection: class { async getLatestBlockhash() { return { blockhash: 'B' }; } } },
-    spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') }
-  });
-  const launcher = createLauncher({ presets: PRESETS, load, logger: quiet, maxPerMinute: 1000 });
-  const body = links => JSON.stringify({ preset: 'standard', name: 'Sleepy Heron', symbol: 'SNOOZ', creator: CREATOR, art: id, links });
+  const load = fakeLoad({});
+  const launcher = createLauncher({ platformWallet: PLATFORM, load, logger: quiet, maxPerMinute: 1000 });
+  const body = links => JSON.stringify({ name: 'Sleepy Heron', symbol: 'SNOOZ', creator: CREATOR, art: id, links });
   await withServer({ art, launcher }, async base => {
     const post = links => fetch(base + '/api/launch/prepare', { method: 'POST', body: body(links) });
     // bad links are refused and nothing is stored
@@ -461,7 +446,7 @@ test('server: links are checked, stored with the picture, published, and frozen 
     assert.deepEqual(art.record(id).links, {});
     assert.equal(art.record(id).pinned, false);
     // links without a stored picture are refused
-    const noArt = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ preset: 'standard', name: 'X', symbol: 'X', creator: CREATOR, links: { website: 'https://a.xyz' } }) });
+    const noArt = await fetch(base + '/api/launch/prepare', { method: 'POST', body: JSON.stringify({ name: 'X', symbol: 'X', creator: CREATOR, links: { website: 'https://a.xyz' } }) });
     assert.equal(noArt.status, 400);
     // good links are saved and published
     const mine = { website: 'https://yourcoin.xyz', twitter: '@yourcoin', telegram: 'your_coin' };
@@ -505,15 +490,10 @@ test('server: the founder picture keeps editable links even after a launch', asy
   const art = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: quiet, dir });
   const png = fs.readFileSync(path.join(__dirname, '..', 'founder', 'logo.png'));
   const id = art.seed(png, { name: 'HatchPad', ticker: 'HATCH', description: 'First.' });
-  class PublicKey { constructor(v) { this.v = v; } toBase58() { return this.v; } }
-  const load = async () => ({
-    sdk: { DynamicBondingCurveClient: class { constructor() { this.creator = { createPool: async () => ({ partialSign() {}, serialize() { return Buffer.from('TX'); } }) }; } }, deriveDbcPoolAddress: () => new PublicKey('PoolAddress11111111111111111111111111111111') },
-    web3: { PublicKey, Keypair: { generate: () => ({ publicKey: new PublicKey('Mint1111111111111111111111111111111111111111') }) }, Connection: class { async getLatestBlockhash() { return { blockhash: 'B' }; } } },
-    spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') }
-  });
-  const launcher = createLauncher({ presets: PRESETS, load, logger: quiet, maxPerMinute: 1000 });
+  const load = fakeLoad({});
+  const launcher = createLauncher({ platformWallet: PLATFORM, load, logger: quiet, maxPerMinute: 1000 });
   const founder = { id, ext: 'png', wallet: CREATOR, name: 'HatchPad', ticker: 'HATCH', description: 'First.', buf: png };
-  const body = links => JSON.stringify({ preset: 'standard', name: 'HatchPad', symbol: 'HATCH', creator: CREATOR, art: id, links });
+  const body = links => JSON.stringify({ name: 'HatchPad', symbol: 'HATCH', creator: CREATOR, art: id, links });
   await withServer({ art, launcher, founder }, async base => {
     const post = links => fetch(base + '/api/launch/prepare', { method: 'POST', body: body(links) });
     assert.equal((await post({ website: 'https://hatchpadsol.xyz' })).status, 200);
