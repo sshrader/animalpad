@@ -47,6 +47,19 @@ body { margin: 0; background: var(--ground); color: var(--text); font: 400 16px/
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 #recent, #how, #about { scroll-margin-top: 16px; }
+.curvebox { display: grid; gap: 8px; margin-bottom: 14px; }
+#curve { width: 100%; height: auto; display: block; overflow: visible; }
+#curve .grid { stroke: var(--edge); stroke-opacity: 0.25; stroke-width: 1; }
+#curve .axis { fill: var(--muted); font: 600 11px var(--font); }
+#curve .line { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+#curve .area { fill: var(--accent); fill-opacity: 0.12; }
+#curve .goal { fill: var(--pop); stroke: var(--edge); stroke-width: 2; }
+#curve .goal-t { fill: var(--text); font: 700 12px var(--font); }
+#curve .pin { cursor: pointer; }
+#curve .pin circle.ring { fill: var(--paper); stroke: var(--pop); stroke-width: 3; }
+#curve .pin:hover circle.ring, #curve .pin:focus-visible circle.ring { stroke: var(--accent); }
+#curve .pin:focus-visible { outline: none; }
+#curve .pin text { fill: var(--text); font: 400 14px var(--display); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 12px; }
 .feed:empty { display: none; }
 .coin { display: grid; gap: 8px; padding: 10px; border: 2px solid var(--edge); border-radius: 16px; background: var(--soft); min-width: 0; align-content: start; }
@@ -188,6 +201,16 @@ details.trade[open] summary::before { transform: rotate(90deg); }
     <p class="lede">AI draws the mascot and names it. Keep it or toss it, then put it on a bonding curve with your wallet.</p>
   </div>
 
+  <section class="panel" id="recent" aria-labelledby="recent-h">
+    <h2 id="recent-h">Recently launched</h2>
+    <div class="curvebox" id="curvebox" hidden>
+      <svg id="curve" viewBox="0 0 640 280" role="img" aria-labelledby="curve-t"><title id="curve-t">Recent coins placed along the bonding curve by how much they have raised</title></svg>
+      <p class="hint">Each coin sits on the curve where its raised SOL puts it. Further right means closer to filling the curve. Select a coin to trade it.</p>
+    </div>
+    <div class="feed" id="feed" aria-live="polite"></div>
+    <p class="hint" id="feed-note">Loading the latest launches…</p>
+  </section>
+
   <section class="panel studio" id="studio" hidden>
     <div class="ask">
       <p class="status bad" id="a-off" hidden>The animal studio is switched off on this server, so no pictures can be made yet. The site owner needs to finish its image settings. Open /healthz to see which one.</p>
@@ -268,12 +291,6 @@ details.trade[open] summary::before { transform: rotate(90deg); }
       </div>
     </details>
   </div>
-
-  <section class="panel" id="recent" aria-labelledby="recent-h">
-    <h2 id="recent-h">Recently launched</h2>
-    <div class="feed" id="feed" aria-live="polite"></div>
-    <p class="hint" id="feed-note">Loading the latest launches…</p>
-  </section>
 
   <section id="how" class="band" aria-labelledby="how-h">
     <h2 id="how-h">How it works</h2>
