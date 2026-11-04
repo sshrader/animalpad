@@ -384,3 +384,25 @@ test('fallback names read well for typical descriptions', async () => {
   const d = await fall('the sleepy red panda riding a bike');
   assert.deepEqual([d.name, d.ticker], ['Red Panda', 'PANDA']);
 });
+
+test('random ideas: different each time, read naturally, and none of the thousands of combinations is blocked', () => {
+  const { ideas, MOODS, ANIMALS, EXTRAS } = require('../public/ideas.js');
+  const { blockedWord } = require('../art.js');
+  const a = ideas(3);
+  assert.equal(a.length, 3);
+  assert.equal(new Set(a).size, 3);
+  assert.equal(ideas(30).length, 30);
+  assert.equal(new Set(ideas(30)).size, 30);
+  // a seeded generator is repeatable, and different seeds give different ideas
+  const seeded = seed => () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  assert.deepEqual(ideas(3, seeded(7)), ideas(3, seeded(7)));
+  assert.notDeepEqual(ideas(3, seeded(7)), ideas(3, seeded(8)));
+  // "a" or "an" matches the next word
+  for (const i of ideas(60)) assert.equal(/^an [aeiou]|^a [^aeiou ]/.test(i), true, i);
+  assert.ok(MOODS.length * ANIMALS.length * EXTRAS.length > 5000);
+  // every combination passes the same character and brand check that real prompts go through
+  for (const m of MOODS) for (const an of ANIMALS) for (const x of EXTRAS) {
+    const text = m + ' ' + an + ' ' + x;
+    assert.equal(blockedWord(text), null, text);
+  }
+});

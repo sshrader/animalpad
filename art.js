@@ -282,4 +282,4 @@ function createArt(opts) {
   return { info, generate, get, record, pin, prune, provider, reason };
 }
 
-module.exports = { createArt, ID_RE };
+module.exports = { createArt, ID_RE, blockedWord };

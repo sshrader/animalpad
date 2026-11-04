@@ -22,13 +22,28 @@
   document.addEventListener('animalpad:launched', () => step(3));
   document.addEventListener('animalpad:reset', () => step(1));
 
-  // Example prompts fill the box so a new visitor does not face a blank field.
+  // Idea buttons fill the box so a new visitor does not face a blank field. They are random each visit,
+  // and "More ideas" draws a fresh set.
+  function showIdeas() {
+    const box = $('examples');
+    box.textContent = '';
+    window.AnimalIdeas.ideas(3).forEach(text => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'eg'; b.textContent = text;
+      box.appendChild(b);
+    });
+    const more = document.createElement('button');
+    more.type = 'button'; more.className = 'eg more'; more.id = 'more-ideas'; more.textContent = 'More ideas';
+    box.appendChild(more);
+  }
   $('examples').addEventListener('click', e => {
     const b = e.target.closest && e.target.closest('.eg');
     if (!b) return;
+    if (b.id === 'more-ideas') { showIdeas(); return; }
     $('a-prompt').value = b.textContent;
     $('a-prompt').focus();
   });
+  showIdeas();
 
   // Picks a hue from the picture: the average hue of its colourful pixels, ignoring greys, whites and darks.
   function hueOf(img) {

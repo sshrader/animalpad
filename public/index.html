@@ -69,6 +69,7 @@ input::placeholder { color: var(--muted); opacity: 0.8; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .examples { display: flex; flex-wrap: wrap; gap: 8px; }
 .eg { padding: 6px 12px; border-radius: 999px; border: 2px solid var(--edge); background: var(--paper); color: var(--text); font: 500 13px/1.2 var(--font); cursor: pointer; }
+.eg.more { border-style: dashed; color: var(--muted); }
 .eg:hover { background: var(--pop); color: #1c1547; }
 button { font: inherit; cursor: pointer; }
 .btn {
@@ -164,11 +165,7 @@ details.trade[open] summary::before { transform: rotate(90deg); }
             <button type="button" class="btn go" id="a-gen">Draw it</button>
           </div>
         </div>
-        <div class="examples" id="examples" aria-label="Examples">
-          <button type="button" class="eg">a sad frog eating a fly</button>
-          <button type="button" class="eg">an angry capybara in sunglasses</button>
-          <button type="button" class="eg">a sleepy red panda on a bike</button>
-        </div>
+        <div class="examples" id="examples" aria-label="Ideas"></div>
         <p class="status" id="a-status" role="status"></p>
         <div id="a-card" class="fields" hidden>
           <label>Name <input type="text" id="a-name" maxlength="32" autocomplete="off"></label>
@@ -233,6 +230,7 @@ details.trade[open] summary::before { transform: rotate(90deg); }
 </main>
 <script src="/wallet.js"></script>
 <script src="/studio.js"></script>
+<script src="/ideas.js"></script>
 <script src="/chrome.js"></script>
 <script src="/launch.js"></script>
 <script src="/trade.js"></script>
