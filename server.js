@@ -149,6 +149,25 @@ function createApp(opts) {
       return;
     }
 
+    // Platform fees: a read-only list for the admin page, and an unsigned claim that only the fee claimer can sign.
+    if (pathname === '/api/admin/fees' && (req.method === 'GET' || req.method === 'HEAD')) {
+      const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' });
+      if (!launcher) return send(res, 503, JSON.stringify({ error: 'launch_unavailable' }), noStore);
+      launcher.partnerFees({ ip: clientIp(req) }).then(r => send(res, r.status, req.method === 'HEAD' ? '' : JSON.stringify(r.body), noStore))
+        .catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
+      return;
+    }
+    if (pathname === '/api/admin/claim' && req.method === 'POST') {
+      const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store', Connection: 'close' });
+      if (!launcher) return send(res, 503, JSON.stringify({ error: 'launch_unavailable' }), noStore);
+      readJson(req, 1024).then(body => {
+        if (!body) return send(res, 400, JSON.stringify({ error: 'bad_request' }), noStore);
+        return launcher.partnerClaim(body, { ip: clientIp(req) }).then(r => send(res, r.status, JSON.stringify(r.body), noStore));
+      }).catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
+      return;
+    }
+    if (pathname === '/admin') pathname = '/admin.html';
+
     // Chat with a coin's mascot. The character is looked up from the coin itself, never taken from the request.
     if (req.method === 'POST' && pathname === '/api/coin/chat') {
       const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store', Connection: 'close' });

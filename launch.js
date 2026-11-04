@@ -338,7 +338,78 @@ function createLauncher(opts) {
     }
   }
 
-  return { info, prepare, status, pool, inspect, buy, fees, claim };
+  // What the platform (the config's fee claimer) has earned on every curve and not yet claimed. Read-only,
+  // and it is all public on-chain data. The wallet check happens on the chain, not here.
+  async function partnerFees(ctx) {
+    if (!presets) return { status: 503, body: { error: 'launch_unavailable' } };
+    if (!allowRead((ctx && ctx.ip) || 'unknown')) return { status: 429, body: { error: 'rate_limited' } };
+    try {
+      const { web3, sdk } = await load();
+      const connection = new web3.Connection(rpcUrl, 'confirmed');
+      const dbc = new sdk.DynamicBondingCurveClient(connection, 'confirmed');
+      const pools = [];
+      const claimers = new Set();
+      for (const id of Object.keys(presets.presets)) {
+        const configPk = new web3.PublicKey(presets.presets[id].config);
+        const cfgRaw = await dbc.state.getPoolConfig(configPk);
+        const cfg = cfgRaw && cfgRaw.account ? cfgRaw.account : cfgRaw;
+        if (cfg && cfg.feeClaimer) claimers.add(cfg.feeClaimer.toBase58());
+        const fees = await dbc.state.getPoolsFeesByConfig(configPk);
+        for (const f of fees) {
+          pools.push({
+            pool: f.poolAddress.toBase58(), preset: id,
+            waitingSol: Number(f.partnerQuoteFee.toString()) / 1e9,
+            totalSol: Number(f.totalTradingQuoteFee.toString()) / 1e9
+          });
+        }
+      }
+      pools.sort((a, b) => b.waitingSol - a.waitingSol);
+      return { status: 200, body: {
+        feeClaimers: Array.from(claimers), pools,
+        totalWaitingSol: pools.reduce((s, p) => s + p.waitingSol, 0), cluster: 'devnet'
+      } };
+    } catch (err) {
+      logger.error('Partner fee read failed: ' + (err && err.stack ? err.stack : 'unknown error'));
+      return { status: 502, body: { error: 'fees_read_failed' } };
+    }
+  }
+
+  // An unsigned claim of the platform's share of one pool's trading fees. Only the config's fee claimer can
+  // sign it, so asking for one for another wallet is refused here and would fail on-chain anyway.
+  async function partnerClaim(input, ctx) {
+    if (!presets) return { status: 503, body: { error: 'launch_unavailable' } };
+    if (!allow((ctx && ctx.ip) || 'unknown')) return { status: 429, body: { error: 'rate_limited' } };
+    const b = input && typeof input === 'object' ? input : {};
+    if (typeof b.pool !== 'string' || !B58_RE.test(b.pool)) return { status: 400, body: { error: 'bad_pool' } };
+    if (typeof b.claimer !== 'string' || !B58_RE.test(b.claimer)) return { status: 400, body: { error: 'bad_claimer' } };
+    try {
+      const r = await readPool(b.pool);
+      if (r.error) return { status: 404, body: { error: r.error } };
+      const claimer = r.cfg.feeClaimer && r.cfg.feeClaimer.toBase58();
+      if (!claimer || claimer !== b.claimer) return { status: 403, body: { error: 'not_fee_claimer' } };
+      const fees = await r.dbc.state.getPoolsFeesByConfig(r.v.config);
+      const mine = fees.find(f => f.poolAddress.toBase58() === b.pool);
+      if (!mine || !mine.partnerQuoteFee || Number(mine.partnerQuoteFee.toString()) <= 0) return { status: 409, body: { error: 'nothing_to_claim' } };
+      const claimerPk = new r.web3.PublicKey(b.claimer);
+      const MAX = new r.BN('18446744073709551615');
+      const tx = await r.dbc.partner.claimPartnerTradingFeeToReceiver({
+        feeClaimer: claimerPk, payer: claimerPk, pool: r.poolPk,
+        maxBaseAmount: MAX, maxQuoteAmount: MAX, receiver: claimerPk
+      });
+      const latest = await r.connection.getLatestBlockhash('confirmed');
+      tx.feePayer = claimerPk;
+      tx.recentBlockhash = latest.blockhash;
+      return { status: 200, body: {
+        transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'),
+        waitingSol: Number(mine.partnerQuoteFee.toString()) / 1e9, cluster: 'devnet'
+      } };
+    } catch (err) {
+      logger.error('Partner claim failed: ' + (err && err.stack ? err.stack : 'unknown error'));
+      return { status: 502, body: { error: 'prepare_failed' } };
+    }
+  }
+
+  return { info, prepare, status, pool, inspect, buy, fees, claim, partnerFees, partnerClaim };
 }
 
 // Metadata for the token, read by wallets and explorers. Built from the link and the stored animal, so the

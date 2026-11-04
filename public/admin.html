@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fees · AnimalPad</title>
+<meta name="robots" content="noindex">
+<script>try { if (localStorage.getItem("animalpad-theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500..800&family=Outfit:wght@400..700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+.fees { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.fees li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.fees .who { display: grid; min-width: 0; }
+.fees .who b { font-weight: 600; overflow-wrap: anywhere; }
+.fees .who span { font: 12px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.fees .amt { font: 14px/1.4 var(--mono); }
+.big { font: 700 2rem/1.1 var(--display); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <a class="brand" href="/" style="color:inherit;text-decoration:none">AnimalPad</a>
+    <div class="row">
+      <span class="chip-net">Devnet · test coins only</span>
+      <button type="button" class="mode" id="theme" aria-label="Switch to light mode" title="Switch light or dark"></button>
+    </div>
+  </header>
+
+  <section class="panel stack2" aria-labelledby="fees-h">
+    <h2 id="fees-h">Platform fees</h2>
+    <p class="hint">Trading fees the platform has earned on every coin and not yet claimed. Only the fee claimer wallet can claim them. This page holds no keys: it asks the server to prepare each claim and your wallet signs it.</p>
+    <div class="row">
+      <button type="button" class="btn go" id="connect">Connect wallet</button>
+      <span class="dl-status" id="who" role="status"></span>
+    </div>
+    <p class="dl-status bad" id="note" role="alert" hidden></p>
+    <div id="body" hidden class="stack">
+      <div><span class="big" id="total">0</span> <span class="hint">SOL waiting across <span id="count">0</span> coins</span></div>
+      <div class="row">
+        <button type="button" class="btn go" id="claim-all">Claim all</button>
+        <button type="button" class="btn" id="reload">Refresh</button>
+      </div>
+      <ul class="fees" id="list"></ul>
+    </div>
+    <p class="dl-status" id="status" role="status"></p>
+  </section>
+</main>
+<script src="/wallet.js"></script>
+<script src="/admin.js"></script>
+</body>
+</html>
