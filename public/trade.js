@@ -25,7 +25,7 @@
 
   const WHY = {
     bad_pool: 'That is not a valid pool address.',
-    pool_not_found: 'No pool found at that address on devnet.',
+    pool_not_found: 'No pool found at that address on this network.',
     not_an_animalpad_pool: 'That pool was not launched through AnimalPad.',
     rate_limited: 'Too many requests. Wait a minute.',
     bad_amount: 'Enter an amount between 0.01 and 5 SOL.',
@@ -112,7 +112,7 @@
       }
       say('Approve the claim in your wallet…');
       const signature = await W.signAndSend(data.transaction);
-      say('Sent. Waiting for devnet to confirm…');
+      say('Sent. Waiting for the network to confirm…');
       const state = await W.confirm(signature);
       if (state === 'confirmed') { busy = false; await loadFees(pool.address); say('Claimed ✓ Creator fees were sent to your wallet.'); }
       else if (state === 'failed') { say('', false); fail('The claim failed on-chain. Reload the pool and try again.'); }
@@ -151,7 +151,7 @@
       }
       say('Approve the buy in your wallet…');
       const signature = await W.signAndSend(data.transaction);
-      say('Sent. Waiting for devnet to confirm…');
+      say('Sent. Waiting for the network to confirm…');
       const state = await W.confirm(signature);
       if (state === 'confirmed') {
         say('Bought ✓ ' + sol + ' SOL on the curve.' + (data.partialFill ? ' This buy filled the curve, so only part of it was used.' : ''));

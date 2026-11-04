@@ -48,14 +48,37 @@ const good = { preset: 'standard', name: 'Salt Lantern', symbol: '$lntrn', creat
 test('presets file: only devnet files with valid config addresses are accepted', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dp-'));
   const write = (n, v) => { const f = path.join(dir, n); fs.writeFileSync(f, JSON.stringify(v)); return f; };
-  assert.deepEqual(Object.keys(loadPresets(write('ok.json', PRESETS)).presets), ['standard']);
-  assert.equal(loadPresets(write('main.json', Object.assign({}, PRESETS, { network: 'mainnet' }))), null);
-  assert.equal(loadPresets(write('bad.json', { network: 'devnet', presets: { x: { config: 'nope' } } })), null);
-  assert.equal(loadPresets(path.join(dir, 'missing.json')), null);
+  assert.deepEqual(Object.keys(loadPresets(write('ok.json', PRESETS), 'devnet').presets), ['standard']);
+  assert.equal(loadPresets(write('main.json', Object.assign({}, PRESETS, { network: 'mainnet' })), 'devnet'), null);
+  assert.deepEqual(Object.keys(loadPresets(write('mn.json', Object.assign({}, PRESETS, { network: 'mainnet-beta' })), 'mainnet-beta').presets), ['standard']);
+  assert.equal(loadPresets(write('mn2.json', Object.assign({}, PRESETS, { network: 'mainnet-beta' })), 'devnet'), null, 'a mainnet file is never used on devnet');
+  assert.equal(loadPresets(write('bad.json', { network: 'devnet', presets: { x: { config: 'nope' } } }), 'devnet'), null);
+  assert.equal(loadPresets(path.join(dir, 'missing.json'), 'devnet'), null);
 });
 
 test('launching refuses to start against a mainnet RPC', () => {
-  assert.throws(() => createLauncher({ presets: PRESETS, rpcUrl: 'https://api.mainnet-beta.solana.com' }), /devnet/);
+  assert.throws(() => createLauncher({ presets: PRESETS, rpcUrl: 'https://api.mainnet-beta.solana.com' }), /mainnet/);
+});
+
+test('mainnet needs the explicit switch, a mainnet-looking RPC and matches the cluster', () => {
+  const MP = Object.assign({}, PRESETS, { network: 'mainnet-beta' });
+  const rpc = 'https://mainnet.helius-rpc.com/?api-key=x';
+  assert.throws(() => createLauncher({ cluster: 'mainnet-beta', presets: MP, rpcUrl: rpc }), /switched off/);
+  assert.throws(() => createLauncher({ cluster: 'mainnet-beta', allowMainnet: true, presets: MP }), /LAUNCH_RPC_URL/);
+  assert.throws(() => createLauncher({ cluster: 'mainnet-beta', allowMainnet: true, presets: MP, rpcUrl: 'https://api.devnet.solana.com' }), /devnet/);
+  assert.throws(() => createLauncher({ cluster: 'moon', presets: MP }), /Unknown cluster/);
+  const l = createLauncher({ cluster: 'mainnet-beta', allowMainnet: true, presets: MP, rpcUrl: rpc });
+  assert.equal(l.info().cluster, 'mainnet-beta');
+});
+
+test('on mainnet a failed quote refuses the buy instead of sending with no minimum', async () => {
+  const MP = Object.assign({}, PRESETS, { network: 'mainnet-beta' });
+  const chain = fakeChain({ raised: 0, quoteThrows: true });
+  const l = createLauncher({ cluster: 'mainnet-beta', allowMainnet: true, presets: MP, rpcUrl: 'https://mainnet.helius-rpc.com/?api-key=x', logger: quiet, load: chain.load, maxPerMinute: 1000 });
+  const r = await l.buy(buyBody(), ctx);
+  assert.equal(r.status, 502);
+  assert.equal(r.body.error, 'quote_failed');
+  assert.equal(chain.seen.swaps.length, 0);
 });
 
 test('prepare builds an unsigned transaction signed only by the new mint', async () => {
@@ -278,8 +301,8 @@ test('buy prepares an unsigned swap with a quoted minimum, and a partial fill wh
   const filling = await createLauncher({ presets: PRESETS, logger: quiet, load: near.load }).buy(buyBody({ sol: 0.1 }), ctx);
   assert.equal(filling.body.partialFill, true);
   assert.equal(near.seen.swaps[0].swapMode, 'PartialFill');
-  assert.equal(near.seen.swaps[0].minimumAmountOut.toString(), '0');
-  assert.equal(near.seen.quotes.length, 0);
+  assert.equal(near.seen.swaps[0].minimumAmountOut.toString(), '777', 'a curve-filling buy is quoted too');
+  assert.equal(near.seen.quotes.length, 1);
 });
 
 test('buy rejects bad input, other projects\' pools, full and migrated curves', async () => {

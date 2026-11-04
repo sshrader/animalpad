@@ -36,7 +36,9 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 | `VERIFY_SECRET` | Optional. Secret behind the website-check codes. If unset and a volume exists, one is created in `<DATA_DIR>/verify-secret`. |
 | `LAUNCHES_FILE` | Optional. Overrides where the launch list is saved. |
 | `HIDE_POOLS` | Optional. Comma-separated pool addresses to hide from the public "Recently launched" list. |
-| `LAUNCH_RPC_URL` | Devnet RPC. Default the public one. |
+| `LAUNCH_RPC_URL` | RPC address. Devnet defaults to the public one. Mainnet requires a dedicated paid RPC (keep it in Railway Variables). |
+| `LAUNCH_CLUSTER` | `devnet` (default) or `mainnet-beta`. Loads `devnet/presets.json` or `devnet/presets.mainnet-beta.json`. |
+| `MAINNET_ENABLED` | Must be `yes` for `LAUNCH_CLUSTER=mainnet-beta`. Without it the server refuses to start. |
 | `PUBLIC_URL` | This site's address, if it can't be worked out from the request. |
 
 ## Guardrails
@@ -78,3 +80,22 @@ A coin whose creator added a website shows a "Verify it" box with a code that be
 ## Platform fee claiming (/admin)
 
 `/admin` lists every coin under the preset configs with the platform fees it has earned and not yet claimed (the SDK's `getPoolsFeesByConfig`), with a Claim button per coin and Claim all. Connect the fee claimer wallet in Phantom. The server builds an unsigned claim for the pool (`/api/admin/claim`) and the wallet signs and sends it, so the page and server hold no keys, and the fee claimer can be any wallet Phantom supports, a Ledger included. The page is public but only useful to the fee claimer: the claim is refused for any other wallet by the server and would fail on-chain anyway. It covers fees earned on the curve only. Fees after a coin moves to its trading pool are a separate step. This mirrors the `/#/admin` fee page in the Pawpad repo, with the transactions built on the server because this site's pages do not load the Meteora SDK in the browser.
+
+
+## Going live on mainnet
+
+Real money. Read the go-live list with your lawyer and security reviewer first. The code defaults to devnet and refuses mainnet unless every switch below is set.
+
+1. Make a NEW fee-claimer wallet in Phantom (a fresh account) or on a Ledger / Squads multisig. Copy only its public address. Its private key must never be on a server or in this repo.
+2. Make a throwaway funded "payer" keypair file outside the repo (about 0.1 SOL). It only pays account rent for the configs.
+3. Create the three curve configs on your own computer. The curve fills at 20 SOL by default and cannot be changed afterwards:
+   ```
+   cd devnet && npm install
+   CLUSTER=mainnet-beta MAINNET_OK=yes RPC_URL=<mainnet rpc> PAYER_KEYPAIR=<path> \
+     node 06-create-presets.mjs --fee-claimer <public address> --yes
+   ```
+   Add `THRESHOLD_SOL=<n>` to pick a different size. This writes `devnet/presets.mainnet-beta.json` (public addresses only). Commit it.
+4. In Railway set `LAUNCH_CLUSTER=mainnet-beta`, `MAINNET_ENABLED=yes` and `LAUNCH_RPC_URL=<mainnet rpc>`.
+5. Open `/admin` with the new fee-claimer wallet to claim fees.
+
+On mainnet a buy whose quote fails is refused (devnet falls back to no minimum), and the pages show real-money wording and mainnet explorer links.

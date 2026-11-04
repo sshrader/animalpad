@@ -71,7 +71,7 @@ function createApp(opts) {
   const art = opts.art || createArt({});
   const launches = opts.launches || null;
   const launcher = opts.launcher || null;
-  const actions = createActions({ launches, launcher });
+  const actions = createActions({ launches, launcher, cluster: launcher && launcher.info ? launcher.info().cluster : 'devnet' });
   const verifier = opts.verifier || createVerifier({});
   // Website checks fetch other people's sites, so they are limited per visitor and per coin.
   const verifyHits = new Map();
@@ -291,7 +291,7 @@ function createApp(opts) {
     if (pathname === '/meta.json') {
       const id = url.searchParams.get('i');
       const rec = id && ID_RE.test(id) ? art.record(id) : null;
-      const meta = metadataFor(url.searchParams.get('n'), url.searchParams.get('s'), rec, baseUrlFor(req));
+      const meta = metadataFor(url.searchParams.get('n'), url.searchParams.get('s'), rec, baseUrlFor(req), launcher && launcher.info ? launcher.info().cluster : 'devnet');
       if (!meta) return send(res, 400, JSON.stringify({ error: 'bad_metadata' }), JSON_TYPE);
       return send(res, 200, req.method === 'HEAD' ? '' : JSON.stringify(meta), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'public, max-age=3600' }));
     }
@@ -342,8 +342,11 @@ if (require.main === module) {
     perIpPerHour: Number(process.env.ART_PER_IP_PER_HOUR) || undefined,
     dailyCap: Number(process.env.ART_DAILY_CAP) || undefined
   });
+  const cluster = env('LAUNCH_CLUSTER') || 'devnet';
   const launcher = createLauncher({
-    presetsFile: path.join(__dirname, 'devnet', 'presets.json'),
+    cluster,
+    allowMainnet: env('MAINNET_ENABLED') === 'yes',
+    presetsFile: path.join(__dirname, 'devnet', cluster === 'devnet' ? 'presets.json' : 'presets.' + cluster + '.json'),
     rpcUrl: process.env.LAUNCH_RPC_URL || undefined
   });
   const launchesFile = env('LAUNCHES_FILE') || (dataDir ? path.join(dataDir, 'launches.json') : '');
@@ -366,7 +369,7 @@ if (require.main === module) {
   const server = createApp({ art, launcher, launches, verifier: createVerifier({ secret: verifySecret || undefined }) });
   server.listen(PORT, '0.0.0.0', () => {
     console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio OFF: ' + art.reason + '; provider ' + art.provider + ')') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
-      (launcher.info().enabled ? ' (devnet launch on)' : ' (devnet launch off: no devnet/presets.json)') + (launchesFile ? ' (launch list saved in ' + launchesFile + ')' : ' (launch list in memory only)'));
+      (launcher.info().enabled ? ' (' + cluster + ' launch on)' : ' (' + cluster + ' launch off: no matching presets file in devnet/)') + (launchesFile ? ' (launch list saved in ' + launchesFile + ')' : ' (launch list in memory only)'));
   });
   // Railway stops containers with SIGTERM; close cleanly.
   process.on('SIGTERM', () => {

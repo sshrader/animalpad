@@ -92,10 +92,10 @@
     const t = add(acts, 'a', 'Trade this coin', 'btn go');
     t.href = '/?pool=' + encodeURIComponent(c.pool) + '#trade';
     const tw = add(acts, 'a', 'Share on X', 'btn');
-    tw.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(c.name + ' ($' + c.symbol + ') on AnimalPad, a devnet test coin') + '&url=' + encodeURIComponent(location.origin + '/coin/' + c.pool);
+    tw.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(c.name + ' ($' + c.symbol + ') on AnimalPad' + (AnimalNet.main ? '' : ', a devnet test coin')) + '&url=' + encodeURIComponent(location.origin + '/coin/' + c.pool);
     tw.target = '_blank'; tw.rel = 'noopener noreferrer';
     // A Blink: a link that opens a buy for this coin in a Blink-aware viewer, with no need to visit this site.
-    const blink = 'https://dial.to/?action=' + encodeURIComponent('solana-action:' + location.origin + '/api/actions/trade/' + c.pool) + '&cluster=devnet';
+    const blink = 'https://dial.to/?action=' + encodeURIComponent('solana-action:' + location.origin + '/api/actions/trade/' + c.pool) + AnimalNet.dialSuffix;
     const cp = add(acts, 'button', 'Copy buy link', 'btn'); cp.type = 'button';
     cp.addEventListener('click', () => {
       const done = () => { cp.textContent = 'Copied'; setTimeout(() => { cp.textContent = 'Copy buy link'; }, 2000); };
@@ -112,7 +112,7 @@
     }
     if (Number(c.devBuySol) > 0) fact('Creator first buy', 'The creator bought ' + Number(c.devBuySol) + ' SOL worth in the launch transaction, before anyone else could.');
     fact('Launched', when(c.createdAt));
-    const ex = a => 'https://explorer.solana.com/address/' + encodeURIComponent(a) + '?cluster=devnet';
+    const ex = a => 'https://explorer.solana.com/address/' + encodeURIComponent(a) + AnimalNet.suffix;
     [['Token address', c.mint], ['Pool address', c.pool], ['Creator wallet', c.creator]].forEach(x => {
       if (!B58.test(x[1] || '')) return;
       const s = document.createElement('span');
@@ -192,7 +192,7 @@
   fetch('/api/launches/' + pool, { cache: 'no-store', headers: { Accept: 'application/json' } })
     .then(r => r.json().then(b => ({ status: r.status, body: b })))
     .then(async r => {
-      if (r.status === 200) render(r.body, await getCfg);
+      if (r.status === 200) { await AnimalNet.ready; render(r.body, await getCfg); }
       else if (r.status === 404) problem('No coin found here. It may not be on the chain yet. Try again in a few seconds.');
       else problem('Could not load this coin. Try again in a moment.');
     })

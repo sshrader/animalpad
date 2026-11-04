@@ -84,7 +84,7 @@
     const sym = $('a-sym').value.replace(/^\$/, '').trim().toUpperCase();
     if (!name || name.length > 32) { say('Give it a name up to 32 characters.', true); return; }
     if (!/^[A-Z0-9]{1,10}$/.test(sym)) { say('The ticker needs 1 to 10 letters or digits.', true); return; }
-    say('Accepted ✓ Next: launch it on devnet.');
+    say('Accepted ✓ Next: launch it.');
     document.dispatchEvent(new CustomEvent('animalpad:staged', { detail: { name: name, symbol: sym, preset: 'standard', art: current.id } }));
     $('launch').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }

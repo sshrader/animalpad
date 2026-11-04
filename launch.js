@@ -24,17 +24,17 @@ function cleanText(s, max) {
   return s.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function loadPresets(file) {
+function loadPresets(file, cluster) {
   try {
     const j = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (!j || j.network !== 'devnet' || !j.presets || typeof j.presets !== 'object') return null;
+    if (!j || j.network !== cluster || !j.presets || typeof j.presets !== 'object') return null;
     const ok = {};
     for (const id of Object.keys(j.presets)) {
       const p = j.presets[id];
       if (p && typeof p.config === 'string' && B58_RE.test(p.config)) ok[id] = { config: p.config, totalPct: p.totalPct, creatorSharePct: p.creatorSharePct };
     }
     const threshold = Number(j.thresholdSol);
-    return Object.keys(ok).length ? { network: 'devnet', thresholdSol: Number.isFinite(threshold) && threshold > 0 ? threshold : null, presets: ok } : null;
+    return Object.keys(ok).length ? { network: cluster, thresholdSol: Number.isFinite(threshold) && threshold > 0 ? threshold : null, presets: ok } : null;
   } catch (err) {
     return null;
   }
@@ -66,18 +66,24 @@ function createLimiter(max, windowMs, now) {
 
 function createLauncher(opts) {
   const o = opts || {};
-  const presets = o.presets === undefined ? loadPresets(o.presetsFile) : o.presets;
-  const rpcUrl = o.rpcUrl || 'https://api.devnet.solana.com';
+  const cluster = o.cluster || 'devnet';
+  if (cluster !== 'devnet' && cluster !== 'mainnet-beta') throw new Error('Unknown cluster "' + cluster + '". Use devnet or mainnet-beta.');
+  const isMain = cluster === 'mainnet-beta';
+  if (isMain && o.allowMainnet !== true) throw new Error('Mainnet is switched off. Set MAINNET_ENABLED=yes to allow real-money launches.');
+  const presets = o.presets === undefined ? loadPresets(o.presetsFile, cluster) : o.presets;
+  const rpcUrl = o.rpcUrl || (isMain ? '' : 'https://api.devnet.solana.com');
   const load = o.load || loadReal;
   const logger = o.logger || console;
   const allow = createLimiter(o.maxPerMinute || 10, 60000, o.now || Date.now);
   const allowRead = createLimiter(o.maxReadsPerMinute || 120, 60000, o.now || Date.now);
   const presetConfigs = new Map(presets ? Object.keys(presets.presets).map(id => [presets.presets[id].config, id]) : []);
 
-  if (/mainnet/i.test(rpcUrl)) throw new Error('Launch RPC looks like mainnet. This build only supports devnet.');
+  if (isMain && !rpcUrl) throw new Error('Mainnet needs LAUNCH_RPC_URL set to a dedicated mainnet RPC.');
+  if (isMain && /devnet|testnet/i.test(rpcUrl)) throw new Error('LAUNCH_CLUSTER is mainnet-beta but LAUNCH_RPC_URL looks like devnet.');
+  if (!isMain && /mainnet/i.test(rpcUrl)) throw new Error('LAUNCH_CLUSTER is devnet but LAUNCH_RPC_URL looks like mainnet.');
 
   function info() {
-    const out = { enabled: Boolean(presets), cluster: 'devnet', presets: presets ? Object.keys(presets.presets) : [] };
+    const out = { enabled: Boolean(presets), cluster, presets: presets ? Object.keys(presets.presets) : [] };
     if (presets) {
       // What each preset charges and shares, so the page can say it without a second copy of the numbers.
       out.terms = {};
@@ -162,7 +168,7 @@ function createLauncher(opts) {
           pool: pool.toBase58(),
           preset: b.preset,
           firstBuySol: firstBuySol > 0 ? firstBuySol : 0,
-          cluster: 'devnet'
+          cluster
         }
       };
     } catch (err) {
@@ -227,7 +233,7 @@ function createLauncher(opts) {
           address, preset: r.presetId,
           raisedSol: r.raised / 1e9, thresholdSol: r.need / 1e9,
           progress: r.need ? Math.min(1, r.raised / r.need) : 0,
-          migrated, curveFull: migrated || (r.need > 0 && r.raised >= r.need), cluster: 'devnet'
+          migrated, curveFull: migrated || (r.need > 0 && r.raised >= r.need), cluster
         }
       };
     } catch (err) {
@@ -261,27 +267,24 @@ function createLauncher(opts) {
       const lamports = Math.floor(sol * 1e9);
       const amountIn = new r.BN(lamports);
       const buyerPk = new r.web3.PublicKey(b.buyer);
-      // A buy that would fill the curve must be a partial fill. The SDK's quote for that mode failed in
-      // testing, so it is sent with no minimum output. That is acceptable on devnet only, and this build
-      // refuses mainnet. Revisit it before any mainnet use.
+      // A buy that would fill the curve must be a partial fill.
       const crossing = r.need - r.raised < lamports * 1.2;
       const swapMode = crossing ? r.sdk.SwapMode.PartialFill : r.sdk.SwapMode.ExactIn;
       let minimumAmountOut = new r.BN(0);
-      if (!crossing) {
-        // The SDK's quote has thrown inside its own code on devnet pools. It only sets a safety minimum,
-        // so on devnet a failed quote falls back to no minimum and is logged. Revisit before mainnet.
-        try {
-          const currentPoint = r.cfg.activationType === r.sdk.ActivationType.Slot
-            ? new r.BN(await r.connection.getSlot())
-            : new r.BN(Math.floor(Date.now() / 1000));
-          const quote = r.dbc.pool.swapQuote2({
-            virtualPool: r.quotePool, config: r.cfg, swapBaseForQuote: false, swapMode, amountIn, slippageBps: 300,
-            hasReferral: false, eligibleForFirstSwapWithMinFee: false, currentPoint
-          });
-          minimumAmountOut = quote.minimumAmountOut;
-        } catch (qerr) {
-          logger.error('Launch buy quote failed, sending with no minimum: ' + (qerr && qerr.stack ? qerr.stack : qerr));
-        }
+      // The quote sets the safety minimum (3% slippage). The SDK's quote has thrown on some devnet pools,
+      // so devnet falls back to no minimum and logs it. On mainnet a failed quote stops the buy instead.
+      try {
+        const currentPoint = r.cfg.activationType === r.sdk.ActivationType.Slot
+          ? new r.BN(await r.connection.getSlot())
+          : new r.BN(Math.floor(Date.now() / 1000));
+        const quote = r.dbc.pool.swapQuote2({
+          virtualPool: r.quotePool, config: r.cfg, swapBaseForQuote: false, swapMode, amountIn, slippageBps: 300,
+          hasReferral: false, eligibleForFirstSwapWithMinFee: false, currentPoint
+        });
+        minimumAmountOut = quote.minimumAmountOut;
+      } catch (qerr) {
+        logger.error('Launch buy quote failed' + (isMain ? ', buy refused: ' : ', sending with no minimum: ') + (qerr && qerr.stack ? qerr.stack : qerr));
+        if (isMain) return { status: 502, body: { error: 'quote_failed' } };
       }
       const tx = await r.dbc.pool.swap2({
         owner: buyerPk, payer: buyerPk, pool: r.poolPk, swapBaseForQuote: false, swapMode, amountIn,
@@ -294,7 +297,7 @@ function createLauncher(opts) {
         status: 200,
         body: {
           transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'),
-          partialFill: crossing, cluster: 'devnet'
+          partialFill: crossing, cluster
         }
       };
     } catch (err) {
@@ -320,7 +323,7 @@ function createLauncher(opts) {
           address, creator: r.v.creator.toBase58(),
           unclaimedSol: lamports(part.unclaimedQuoteFee) / 1e9,
           claimedSol: lamports(part.claimedQuoteFee) / 1e9,
-          cluster: 'devnet'
+          cluster
         }
       };
     } catch (err) {
@@ -354,7 +357,7 @@ function createLauncher(opts) {
       tx.recentBlockhash = latest.blockhash;
       return {
         status: 200,
-        body: { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'), cluster: 'devnet' }
+        body: { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'), cluster }
       };
     } catch (err) {
       logger.error('Launch claim failed: ' + (err && err.stack ? err.stack : 'unknown error'));
@@ -390,7 +393,7 @@ function createLauncher(opts) {
       pools.sort((a, b) => b.waitingSol - a.waitingSol);
       return { status: 200, body: {
         feeClaimers: Array.from(claimers), pools,
-        totalWaitingSol: pools.reduce((s, p) => s + p.waitingSol, 0), cluster: 'devnet'
+        totalWaitingSol: pools.reduce((s, p) => s + p.waitingSol, 0), cluster
       } };
     } catch (err) {
       logger.error('Partner fee read failed: ' + (err && err.stack ? err.stack : 'unknown error'));
@@ -425,7 +428,7 @@ function createLauncher(opts) {
       tx.recentBlockhash = latest.blockhash;
       return { status: 200, body: {
         transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'),
-        waitingSol: Number(mine.partnerQuoteFee.toString()) / 1e9, cluster: 'devnet'
+        waitingSol: Number(mine.partnerQuoteFee.toString()) / 1e9, cluster
       } };
     } catch (err) {
       logger.error('Partner claim failed: ' + (err && err.stack ? err.stack : 'unknown error'));
@@ -438,11 +441,11 @@ function createLauncher(opts) {
 
 // Metadata for the token, read by wallets and explorers. Built from the link and the stored animal, so the
 // page never has to host anything else. `art` is the stored record for the picture, if there is one.
-function metadataFor(name, symbol, art, base) {
+function metadataFor(name, symbol, art, base, cluster) {
   const n = cleanText(name, 32);
   const s = typeof symbol === 'string' ? symbol.replace(/^\$/, '').trim().toUpperCase() : '';
   if (!n || !SYMBOL_RE.test(s)) return null;
-  const description = art && art.description ? cleanText(art.description, 200) : 'A devnet test token launched on AnimalPad.';
+  const description = art && art.description ? cleanText(art.description, 200) : (cluster === 'mainnet-beta' ? 'A coin launched on AnimalPad.' : 'A devnet test token launched on AnimalPad.');
   const meta = { name: n, symbol: s, description, image: art && art.id && base ? base + '/art/' + art.id + '.' + (art.ext === 'jpg' ? 'jpg' : 'png') : '' };
   // The creator's own links, in the field names wallets and explorers read.
   const links = art && art.links && typeof art.links === 'object' ? art.links : {};

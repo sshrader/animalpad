@@ -5,6 +5,7 @@
 // Spec: https://solana.com/docs/advanced/actions
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const DEVNET = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
+const MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 const AMOUNTS = [0.05, 0.1, 0.5];
 const MIN_SOL = 0.01, MAX_SOL = 5;
 
@@ -22,6 +23,8 @@ const HEADERS = {
 function createActions(opts) {
   const launches = opts.launches;
   const launcher = opts.launcher;
+  const isMain = opts.cluster === 'mainnet-beta';
+  const HEADERS_C = Object.assign({}, HEADERS, { 'X-Blockchain-Ids': isMain ? MAINNET : DEVNET });
 
   // Maps a coin page link to its action, so a pasted /coin/<pool> link can unfurl as a Blink.
   function rules() {
@@ -71,10 +74,10 @@ function createActions(opts) {
       const why = { rate_limited: 'Too many requests. Wait a minute.', migrated: 'This coin has moved to its trading pool.', curve_full: 'The curve is full.' };
       return { status: r.status >= 500 ? 502 : 400, body: { message: why[r.body && r.body.error] || 'Could not prepare the buy. Try again.' } };
     }
-    return { status: 200, body: { type: 'transaction', transaction: r.body.transaction, message: 'Buy ' + sol + ' SOL of ' + d.body.name + ' (devnet test coins).' } };
+    return { status: 200, body: { type: 'transaction', transaction: r.body.transaction, message: 'Buy ' + sol + ' SOL of ' + d.body.name + (isMain ? '.' : ' (devnet test coins).') } };
   }
 
-  return { describe, transact, rules, HEADERS };
+  return { describe, transact, rules, HEADERS: HEADERS_C };
 }
 
-module.exports = { createActions, HEADERS, DEVNET };
+module.exports = { createActions, HEADERS, DEVNET, MAINNET };

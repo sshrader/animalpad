@@ -64,8 +64,10 @@ a.btn { text-decoration: none; display: inline-block; }
     <p class="hint" id="cp-note">Loading this coin…</p>
   </section>
 
-  <p class="foot">Test version on Solana devnet. Pictures are made by AI. Tokens here have no value.</p>
+  <p class="foot" data-net-only="devnet">Test version on Solana devnet. Pictures are made by AI. Tokens here have no value.</p>
+  <p class="foot" data-net-only="mainnet-beta" hidden>Pictures are made by AI. Coins here are created by users, are not endorsed by AnimalPad, and can lose all their value. Not financial advice.</p>
 </main>
+<script src="/net.js"></script>
 <script src="/coin.js"></script>
 </body>
 </html>

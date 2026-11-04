@@ -89,7 +89,7 @@
         </label>
         <div class="row">
           <button type="button" class="btn go" id="dl-connect">Connect wallet</button>
-          <button type="button" class="btn go" id="dl-go" hidden>Launch on devnet</button>
+          <button type="button" class="btn go" id="dl-go" hidden>Launch coin</button>
         </div>
         <p class="dl-status" id="dl-status" role="status"></p>
         <div class="dl-result" id="dl-result" hidden></div>
@@ -99,7 +99,7 @@
     <details class="panel trade" id="trade" hidden>
       <summary>Trade a coin by its pool address</summary>
       <div class="trade-body">
-        <p class="hint">Paste a pool address from a launch, see how full its curve is, and buy with devnet SOL. Your wallet signs; nothing is sent without your approval.</p>
+        <p class="hint">Paste a pool address from a launch, see how full its curve is, and buy with SOL. Your wallet signs; nothing is sent without your approval.</p>
         <div class="trade-row">
           <input type="text" id="t-pool" placeholder="Pool address" autocomplete="off" spellcheck="false" aria-label="Pool address">
           <button type="button" class="btn" id="t-load">Load</button>
@@ -135,9 +135,11 @@
   <section id="about" class="band" aria-labelledby="about-h">
     <h2 id="about-h">About</h2>
     <div class="aboutgrid">
-      <p class="about">AnimalPad is a test launcher for animal-mascot coins. It runs on Solana devnet, so every coin and every SOL here is play money. It exists to try the idea out before any real money is involved.</p>
+      <p class="about" data-net-only="devnet">AnimalPad is a test launcher for animal-mascot coins. It runs on Solana devnet, so every coin and every SOL here is play money. It exists to try the idea out before any real money is involved.</p>
+      <p class="about" data-net-only="mainnet-beta" hidden>AnimalPad launches animal-mascot coins on Solana. You describe an animal, AI draws it, and your wallet launches it on a bonding curve. Coins are created by users and can lose all their value.</p>
       <div class="faq">
-        <details><summary>Is this real money?</summary><p>No. It runs on devnet, Solana's test network. Real-money mainnet is switched off in the code.</p></details>
+        <details data-net-only="devnet"><summary>Is this real money?</summary><p>No. It runs on devnet, Solana's test network. Real-money mainnet is switched off in the code.</p></details>
+        <details data-net-only="mainnet-beta" hidden><summary>Is this real money?</summary><p>Yes. Every buy, sell and launch uses real SOL. Only spend what you can afford to lose.</p></details>
         <details><summary>Who can claim the creator fees?</summary><p>Only the wallet that launched the coin. The site prepares the claim and that wallet signs it.</p></details>
         <details><summary>What happens when the curve fills?</summary><p>The coin is ready to move to a regular trading pool. On this test version the team does that step by script; a button is not built yet.</p></details>
         <details><summary>Where do the pictures come from?</summary><p>AI makes them from your description, and asks for an original character. It refuses well-known characters, brands and people, but it is not perfect. Pictures of launched coins are kept; animals you do not launch are deleted after a day.</p></details>
@@ -146,8 +148,10 @@
     </div>
   </section>
 
-  <p class="foot">Test version on Solana devnet. Pictures are made by AI, and the coins have no value.</p>
+  <p class="foot" data-net-only="devnet">Test version on Solana devnet. Pictures are made by AI, and the coins have no value.</p>
+  <p class="foot" data-net-only="mainnet-beta" hidden>Pictures are made by AI. Coins here are created by users, are not endorsed by AnimalPad, and can lose all their value. Not financial advice.</p>
 </main>
+<script src="/net.js"></script>
 <script src="/wallet.js"></script>
 <script src="/studio.js"></script>
 <script src="/ideas.js"></script>

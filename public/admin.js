@@ -26,7 +26,7 @@
     nothing_to_claim: 'Nothing to claim on that coin right now.',
     rate_limited: 'Too many requests. Wait a minute.',
     not_an_animalpad_pool: 'That pool is not an AnimalPad coin.',
-    fees_read_failed: 'The server could not read the fees from devnet. The free public devnet RPC often refuses this lookup. Set LAUNCH_RPC_URL on the server to a dedicated devnet RPC address (Helius or QuickNode have free ones), and check the server log for "Partner fee read failed".',
+    fees_read_failed: 'The server could not read the fees from the chain. Public RPCs often refuse this lookup. Set LAUNCH_RPC_URL on the server to a dedicated RPC address (Helius or QuickNode), and check the server log for "Partner fee read failed".',
     launch_unavailable: 'Launching is not switched on for this site, so there are no fees to read.'
   };
 
@@ -102,7 +102,7 @@
         }
         say('Approve the claim in your wallet…');
         const sig = await W.signAndSend(body.transaction);
-        say('Sent. Waiting for devnet to confirm…');
+        say('Sent. Waiting for the network to confirm…');
         const state = await W.confirm(sig);
         if (state !== 'confirmed') { say(state === 'failed' ? 'A claim failed on-chain. Refresh and try again.' : 'Not confirmed yet. Refresh in a minute.', true); break; }
         claimed++; total += body.waitingSol || 0;

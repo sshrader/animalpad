@@ -47,8 +47,8 @@
     box.appendChild(strip('MINT', r.mint));
     box.appendChild(strip('POOL', r.pool));
     const links = document.createElement('div');
-    [['Transaction', 'https://explorer.solana.com/tx/' + encodeURIComponent(signature) + '?cluster=devnet'],
-     ['Token', 'https://explorer.solana.com/address/' + encodeURIComponent(r.mint) + '?cluster=devnet']].forEach((x, i) => {
+    [['Transaction', 'https://explorer.solana.com/tx/' + encodeURIComponent(signature) + AnimalNet.suffix],
+     ['Token', 'https://explorer.solana.com/address/' + encodeURIComponent(r.mint) + AnimalNet.suffix]].forEach((x, i) => {
       const a = document.createElement('a');
       a.href = x[1]; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = x[0] + ' ↗';
       if (i) links.appendChild(document.createTextNode('  '));
@@ -98,10 +98,10 @@
       say('Approve the transaction in your wallet…');
       const signature = await W.signAndSend(data.transaction);
       showResult(data, signature);
-      say('Sent. Waiting for devnet to confirm…');
+      say('Sent. Waiting for the network to confirm…');
       const state = await W.confirm(signature);
       if (state === 'confirmed') {
-        say('Confirmed on devnet ✓ Your token is live. Trade it in the card below.');
+        say('Confirmed ✓ Your token is live. Trade it in the card below.');
         document.dispatchEvent(new CustomEvent('animalpad:launched', { detail: { pool: data.pool } }));
       } else if (state === 'failed') {
         say('The transaction failed on-chain. Check the transaction link for the reason. Nothing was created.', true);
