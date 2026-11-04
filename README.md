@@ -87,7 +87,7 @@ A coin whose creator added a website shows a "Verify it" box with a code that be
 Real money. Read the go-live list with your lawyer and security reviewer first. The code defaults to devnet and refuses mainnet unless every switch below is set.
 
 1. Make a NEW fee-claimer wallet in Phantom (a fresh account) or on a Ledger / Squads multisig. Copy only its public address. Its private key must never be on a server or in this repo.
-2. Make a throwaway funded "payer" keypair file outside the repo (about 0.1 SOL). It only pays account rent for the configs.
+2. Make a throwaway "payer" keypair file outside the repo with `node devnet/09-new-payer.mjs D:\keys\payer.json`, then send about 0.1 SOL to the address it prints. It only pays account rent for the configs.
 3. Create the three curve configs on your own computer. The curve fills at 20 SOL by default and cannot be changed afterwards:
    ```
    cd devnet && npm install
