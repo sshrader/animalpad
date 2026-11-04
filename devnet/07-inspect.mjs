@@ -22,3 +22,12 @@ console.log('isMigrated              ' + show(v.isMigrated));
 console.log('migrationProgress       ' + show(v.migrationProgress) + '   (0 before curve done, 1 curve done, 2 ready to migrate, 3 migrated)');
 console.log('migrationOption         ' + show(cfg.migrationOption) + '   migrationFeeOption ' + show(cfg.migrationFeeOption));
 console.log('lockedVesting amount    ' + show(cfg.lockedVestingConfig && cfg.lockedVestingConfig.amountPerPeriod) + ' per period x ' + show(cfg.lockedVestingConfig && cfg.lockedVestingConfig.numberOfPeriod));
+
+// Everything the pool account holds, for diagnosing odd numbers. Public data only.
+if (process.argv.includes('--all')) {
+  console.log('\nAll pool fields:');
+  for (const [k, val] of Object.entries(v)) {
+    if (val && typeof val === 'object' && !(typeof val.toString === 'function' && val.toString !== Object.prototype.toString)) continue;
+    console.log('  ' + k.padEnd(28) + show(val));
+  }
+}
