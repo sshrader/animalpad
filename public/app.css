@@ -37,7 +37,9 @@ body { margin: 0; background: var(--ground); color: var(--text); font: 400 16px/
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 #recent, #how, #about, #trade { scroll-margin-top: 16px; }
-.curvebox { display: grid; gap: 8px; margin-bottom: 14px; }
+.head { margin-bottom: 14px; }
+.head h2 { margin: 0; }
+.curvebox { display: grid; gap: 8px; margin-bottom: 18px; }
 #curve { width: 100%; height: auto; display: block; overflow: visible; }
 #curve .grid { stroke: var(--edge); stroke-opacity: 0.25; stroke-width: 1; }
 #curve .axis { fill: var(--muted); font: 600 11px var(--font); }
@@ -50,24 +52,13 @@ html { scroll-behavior: smooth; }
 #curve .pin:hover circle.ring, #curve .pin:focus-visible circle.ring { stroke: var(--accent); }
 #curve .pin:focus-visible { outline: none; }
 #curve .pin text { fill: var(--text); font: 700 14px var(--display); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.feed { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+.feed { display: flex; flex-wrap: wrap; gap: 8px; }
 .feed:empty { display: none; }
-.coin { flex: 0 0 132px; scroll-snap-align: start; display: grid; gap: 6px; align-content: start; min-width: 0; }
-.coin img, .coin .noimg { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); display: block; }
-.coin .noimg { display: grid; place-items: center; font: 700 1.4rem/1 var(--display); color: var(--muted); }
-.coin .top2 { display: grid; gap: 0; min-width: 0; }
-.coin strong { font: 600 0.9rem/1.2 var(--display); overflow-wrap: anywhere; }
-.coin .sym { font-size: 12px; font-weight: 700; color: var(--muted); }
-.coin .meta { font-size: 12px; color: var(--muted); }
-.coin .tbar { height: 6px; border-width: 0; }
-.coin a { color: inherit; text-decoration: none; }
-.coin a:hover strong { text-decoration: underline; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--soft); color: var(--text); text-decoration: none; font: 500 14px/1.2 var(--font); max-width: 100%; }
+.chip:hover { border-color: var(--accent); }
+.chip img, .chip .noimg { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; background: var(--paper); display: grid; place-items: center; font: 700 13px/1 var(--display); color: var(--muted); }
+.chip span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .band { display: grid; gap: 18px; }
-.head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
-.head h2 { margin: 0; }
-.seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
-.seg button { padding: 5px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-weight: 600; font-size: 14px; }
-.seg button[aria-pressed="true"] { background: var(--soft); color: var(--text); }
 .band h2 { margin: 0; font: 700 1.5rem/1.2 var(--display); }
 .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 26px 28px; margin: 0; padding: 0; list-style: none; counter-reset: s; }
 .steps li { counter-increment: s; display: grid; gap: 6px; align-content: start; }

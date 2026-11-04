@@ -14,43 +14,25 @@
     return Math.round(h / 24) + ' d ago';
   }
 
+  // A small chip: logo and name, linking to the coin's page.
   function card(c) {
-    const d = document.createElement('div');
-    d.className = 'coin';
-    // Only pictures from this site are shown.
-    const page = '/coin/' + encodeURIComponent(c.pool);
-    const pic = document.createElement('a');
-    pic.href = page; pic.setAttribute('aria-label', 'Open ' + c.name); pic.style.display = 'block';
+    const a = document.createElement('a');
+    a.className = 'chip';
+    a.href = '/coin/' + encodeURIComponent(c.pool);
+    a.title = c.name + ' $' + c.symbol;
     if (typeof c.imageUrl === 'string' && /^\/art\/[0-9a-f]{16}\.(png|jpg)$/.test(c.imageUrl)) {
       const im = document.createElement('img');
-      im.src = c.imageUrl; im.alt = c.name + ' logo'; im.width = 160; im.height = 160; im.loading = 'lazy';
-      pic.appendChild(im);
+      im.src = c.imageUrl; im.alt = ''; im.width = 28; im.height = 28; im.loading = 'lazy';
+      a.appendChild(im);
     } else {
-      const n = document.createElement('div');
+      const n = document.createElement('span');
       n.className = 'noimg'; n.textContent = (c.name || '?').charAt(0).toUpperCase();
-      pic.appendChild(n);
+      a.appendChild(n);
     }
-    d.appendChild(pic);
-    const top = document.createElement('div');
-    top.className = 'top2';
-    const name = document.createElement('strong');
-    const nl = document.createElement('a'); nl.href = page; nl.textContent = c.name; nl.style.color = 'inherit'; nl.style.textDecoration = 'none';
-    name.appendChild(nl);
-    const sym = document.createElement('span'); sym.className = 'sym'; sym.textContent = '$' + c.symbol;
-    top.appendChild(name); top.appendChild(sym);
-    d.appendChild(top);
-
-    const bar = document.createElement('div'); bar.className = 'tbar'; bar.setAttribute('role', 'img');
-    const pct = Math.round(Math.max(0, Math.min(1, Number(c.progress) || 0)) * 100);
-    bar.setAttribute('aria-label', 'Curve ' + pct + '% full');
-    const fill = document.createElement('i'); fill.style.width = pct + '%'; bar.appendChild(fill);
-    d.appendChild(bar);
-
-    const meta = document.createElement('div'); meta.className = 'meta';
-    meta.textContent = c.migrated ? 'Moved to its trading pool' : c.curveFull ? 'Curve full' : pct + '% full';
-    d.appendChild(meta);
-
-    return d;
+    const t = document.createElement('span');
+    t.textContent = c.name;
+    a.appendChild(t);
+    return a;
   }
 
   const SVGNS = 'http://www.w3.org/2000/svg';
@@ -66,8 +48,8 @@
   // The recent coins, placed on the bonding curve by how far along each one is.
   function drawCurve(list) {
     const box = $('curvebox'), svg = $('curve');
-    if (!list.length) { box.hidden = true; return; }
-    box.hidden = view !== 'curve';
+    box.hidden = !list.length;
+    if (!list.length) return;
     Array.from(svg.querySelectorAll(':scope > :not(title)')).forEach(n => n.remove());
     const L = 46, R = 22, T = 34, B = 34, W = 640, H = 280;
     const X = p => L + p * (W - L - R);
@@ -116,20 +98,6 @@
   }
 
   let lastList = [];
-  let view = 'cards';
-  try { if (localStorage.getItem('animalpad-view') === 'curve') view = 'curve'; } catch (e) { /* not saved */ }
-
-  function setView(v) {
-    view = v;
-    try { localStorage.setItem('animalpad-view', v); } catch (e) { /* still works */ }
-    $('v-cards').setAttribute('aria-pressed', v === 'cards' ? 'true' : 'false');
-    $('v-curve').setAttribute('aria-pressed', v === 'curve' ? 'true' : 'false');
-    $('feed').hidden = v === 'curve';
-    $('curvebox').hidden = v !== 'curve' || !lastList.length;
-  }
-  $('v-cards').addEventListener('click', () => setView('cards'));
-  $('v-curve').addEventListener('click', () => setView('curve'));
-
   async function load() {
     try {
       const res = await fetch('/api/launches', { cache: 'no-store', headers: { Accept: 'application/json' } });
@@ -140,7 +108,6 @@
       list.forEach(c => box.appendChild(card(c)));
       lastList = list;
       drawCurve(list);
-      setView(view);
       $('feed-note').textContent = list.length ? '' : 'No launches yet. Draw an animal above and be the first.';
     } catch (err) {
       $('feed-note').textContent = 'Could not load the latest launches. Try again in a moment.';
