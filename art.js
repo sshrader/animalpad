@@ -70,9 +70,16 @@ function normalizeLinks(input) {
     if (m) { if (hosts.indexOf(m[1].toLowerCase()) === -1) return undefined; h = m[2]; }
     return re.test(h) ? h : undefined;
   };
-  const x = handle(input.twitter, ['x.com', 'twitter.com'], /^[A-Za-z0-9_]{1,15}$/);
-  if (x === undefined) return null;
-  if (x) out.twitter = 'https://x.com/' + x;
+  // X accepts a profile (handle or link) or a single post (https://x.com/<handle>/status/<number>). A post link is
+  // rebuilt from its two parts, so nothing else in what was typed is published.
+  const xText = clean1(input.twitter);
+  const post = xText && /^(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x|twitter)\.com\/([A-Za-z0-9_]{1,15})\/status\/(\d{1,25})\/?(?:[?#].*)?$/i.exec(xText);
+  if (post) out.twitter = 'https://x.com/' + post[1] + '/status/' + post[2];
+  else {
+    const x = handle(input.twitter, ['x.com', 'twitter.com'], /^[A-Za-z0-9_]{1,15}$/);
+    if (x === undefined) return null;
+    if (x) out.twitter = 'https://x.com/' + x;
+  }
   const tg = handle(input.telegram, ['t.me', 'telegram.me'], /^[A-Za-z0-9_]{5,32}$/);
   if (tg === undefined) return null;
   if (tg) out.telegram = 'https://t.me/' + tg;

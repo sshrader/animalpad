@@ -503,3 +503,11 @@ test('server: the founder picture keeps editable links even after a launch', asy
     assert.equal(art.record(id).links.twitter, 'https://x.com/hatchpad');
   });
 });
+
+test('links: an X post link is accepted and rebuilt, other X paths are not', () => {
+  const art = require('../art.js');
+  assert.deepEqual(art.normalizeLinks({ twitter: 'https://x.com/Solana_PAD_DEV/status/2118129992601321920?s=20' }), { twitter: 'https://x.com/Solana_PAD_DEV/status/2118129992601321920' });
+  assert.deepEqual(art.normalizeLinks({ twitter: '@Solana_PAD_DEV' }), { twitter: 'https://x.com/Solana_PAD_DEV' });
+  assert.equal(art.normalizeLinks({ twitter: 'https://x.com/Solana_PAD_DEV/status/abc' }), null);
+  assert.equal(art.normalizeLinks({ twitter: 'https://evil.com/Solana_PAD_DEV/status/123' }), null);
+});
