@@ -33,7 +33,8 @@ function loadPresets(file) {
       const p = j.presets[id];
       if (p && typeof p.config === 'string' && B58_RE.test(p.config)) ok[id] = { config: p.config, totalPct: p.totalPct, creatorSharePct: p.creatorSharePct };
     }
-    return Object.keys(ok).length ? { network: 'devnet', presets: ok } : null;
+    const threshold = Number(j.thresholdSol);
+    return Object.keys(ok).length ? { network: 'devnet', thresholdSol: Number.isFinite(threshold) && threshold > 0 ? threshold : null, presets: ok } : null;
   } catch (err) {
     return null;
   }
@@ -76,7 +77,14 @@ function createLauncher(opts) {
   if (/mainnet/i.test(rpcUrl)) throw new Error('Launch RPC looks like mainnet. This build only supports devnet.');
 
   function info() {
-    return { enabled: Boolean(presets), cluster: 'devnet', presets: presets ? Object.keys(presets.presets) : [] };
+    const out = { enabled: Boolean(presets), cluster: 'devnet', presets: presets ? Object.keys(presets.presets) : [] };
+    if (presets) {
+      // What each preset charges and shares, so the page can say it without a second copy of the numbers.
+      out.terms = {};
+      for (const id of out.presets) out.terms[id] = { totalPct: presets.presets[id].totalPct, creatorSharePct: presets.presets[id].creatorSharePct };
+      out.thresholdSol = presets.thresholdSol;
+    }
+    return out;
   }
 
   // Returns { status, body }. Never throws.
@@ -181,9 +189,9 @@ function createLauncher(opts) {
     return { sdk, web3, spl, BN, connection, dbc, poolPk, v, quotePool, cfg, presetId, raised, need };
   }
 
-  async function pool(address, ctx) {
+  // The curve's state, with no rate limit. For the server's own use (the public list of launches).
+  async function inspect(address) {
     if (!presets) return { status: 503, body: { error: 'launch_unavailable' } };
-    if (!allowRead((ctx && ctx.ip) || 'unknown')) return { status: 429, body: { error: 'rate_limited' } };
     if (typeof address !== 'string' || !B58_RE.test(address)) return { status: 400, body: { error: 'bad_pool' } };
     try {
       const r = await readPool(address);
@@ -202,6 +210,12 @@ function createLauncher(opts) {
       logger.error('Launch pool read failed: ' + (err && err.message ? err.message : 'unknown error'));
       return { status: 502, body: { error: 'pool_read_failed' } };
     }
+  }
+
+  async function pool(address, ctx) {
+    if (!presets) return { status: 503, body: { error: 'launch_unavailable' } };
+    if (!allowRead((ctx && ctx.ip) || 'unknown')) return { status: 429, body: { error: 'rate_limited' } };
+    return inspect(address);
   }
 
   // Builds an unsigned buy for the buyer's wallet to sign.
@@ -324,7 +338,7 @@ function createLauncher(opts) {
     }
   }
 
-  return { info, prepare, status, pool, buy, fees, claim };
+  return { info, prepare, status, pool, inspect, buy, fees, claim };
 }
 
 // Metadata for the token, read by wallets and explorers. Built from the link and the stored animal, so the

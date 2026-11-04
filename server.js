@@ -5,8 +5,9 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { createLauncher, metadataFor } = require('./launch');
-const { createArt, ID_RE, normalizeLinks } = require('./art');
+const { createLauncher, metadataFor, cleanText } = require('./launch');
+const { createLaunches } = require('./launches');
+const { createArt, ID_RE, normalizeLinks, blockedWord } = require('./art');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
@@ -66,6 +67,7 @@ function clientIp(req) {
 
 function createApp(opts) {
   const art = opts.art || createArt({});
+  const launches = opts.launches || null;
   const launcher = opts.launcher || null;
 
   return http.createServer((req, res) => {
@@ -112,8 +114,15 @@ function createApp(opts) {
             return send(res, 409, JSON.stringify({ error: 'links_locked' }), noStore);
           }
         }
+        // Names and tickers go on a public list, so they get the same character-and-brand check as prompts.
+        if (action === 'prepare' && blockedWord(String(body.name || '') + ' ' + String(body.symbol || ''))) {
+          return send(res, 400, JSON.stringify({ error: 'blocked_name' }), noStore);
+        }
         return launcher[action](body, { ip: clientIp(req), baseUrl: baseUrlFor(req), hasArt: id => Boolean(art.get(id)) })
           .then(r => {
+            if (action === 'prepare' && r.status === 200 && launches) {
+              launches.record({ pool: r.body.pool, mint: r.body.mint, name: cleanText(body.name, 32), symbol: String(body.symbol || '').replace(/^\$/, '').trim().toUpperCase(), creator: body.creator, art: body.art, preset: body.preset });
+            }
             if (action === 'prepare' && r.status === 200 && typeof body.art === 'string') {
               // Links are saved, then the picture is kept for good and its links are frozen.
               if (Object.keys(links).length) art.setLinks(body.art, links);
@@ -145,6 +154,15 @@ function createApp(opts) {
         : launcher.pool(url.searchParams.get('address'), ctx);
       run.then(r => send(res, r.status, req.method === 'HEAD' ? '' : JSON.stringify(r.body), noStore))
         .catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
+      return;
+    }
+
+    // The public list of launches that exist on-chain, newest first.
+    if (pathname === '/api/launches') {
+      const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'public, max-age=15' });
+      if (!launches) return send(res, 200, JSON.stringify({ launches: [] }), noStore);
+      launches.list().then(items => send(res, 200, req.method === 'HEAD' ? '' : JSON.stringify({ launches: items }), noStore))
+        .catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' })));
       return;
     }
 
@@ -197,12 +215,14 @@ module.exports = { createApp };
 
 if (require.main === module) {
   const PORT = Number(process.env.PORT) || 3000;
-  // Railway volumes mount at a path you choose; /data is the usual one. ART_DIR overrides it.
-  const artDir = process.env.ART_DIR || (fs.existsSync('/data') ? '/data/art' : '');
+  const env = name => String(process.env[name] || '').trim().replace(/^(['"])(.*)\1$/, '$2').trim();
+  // Railway volumes mount at a path you choose; /data is the usual one.
+  // DATA_DIR (the volume's mount path) is the simplest setting; ART_DIR overrides just the pictures.
+  const dataDir = env('DATA_DIR') || (fs.existsSync('/data') ? '/data' : '');
+  const artDir = env('ART_DIR') || (dataDir ? path.join(dataDir, 'art') : '');
   // IMAGE_PROVIDER=cloudflare uses Workers AI (needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN).
   // Anything else uses OpenAI (needs OPENAI_API_KEY). IMAGE_MODEL and TEXT_MODEL override the defaults.
   // Settings pasted into a host's form often carry stray spaces, line breaks or quotes; strip them.
-  const env = name => String(process.env[name] || '').trim().replace(/^(['"])(.*)\1$/, '$2').trim();
   const cloudflare = env('IMAGE_PROVIDER').toLowerCase() === 'cloudflare';
   const art = createArt({
     dir: artDir,
@@ -218,10 +238,17 @@ if (require.main === module) {
     presetsFile: path.join(__dirname, 'devnet', 'presets.json'),
     rpcUrl: process.env.LAUNCH_RPC_URL || undefined
   });
-  const server = createApp({ art, launcher });
+  const launchesFile = env('LAUNCHES_FILE') || (dataDir ? path.join(dataDir, 'launches.json') : '');
+  const launches = createLaunches({
+    file: launchesFile,
+    inspect: address => launcher.inspect(address),
+    artRecord: id => art.record(id),
+    hidden: env('HIDE_POOLS').split(',').map(x => x.trim()).filter(Boolean)
+  });
+  const server = createApp({ art, launcher, launches });
   server.listen(PORT, '0.0.0.0', () => {
     console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio OFF: ' + art.reason + '; provider ' + art.provider + ')') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
-      (launcher.info().enabled ? ' (devnet launch on)' : ' (devnet launch off: no devnet/presets.json)'));
+      (launcher.info().enabled ? ' (devnet launch on)' : ' (devnet launch off: no devnet/presets.json)') + (launchesFile ? ' (launch list saved in ' + launchesFile + ')' : ' (launch list in memory only)'));
   });
   // Railway stops containers with SIGTERM; close cleanly.
   process.on('SIGTERM', () => {

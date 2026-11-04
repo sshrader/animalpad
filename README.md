@@ -31,7 +31,10 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 | `TEXT_MODEL` | Leave blank for the default: `@cf/meta/llama-3.1-8b-instruct` or `gpt-4o-mini`. Writes the name, ticker and description. |
 | `ART_PER_IP_PER_HOUR` | Default 6 pictures per address per hour. |
 | `ART_DAILY_CAP` | Default 300 pictures a day in total. This caps your spend. |
-| `ART_DIR` | Where pictures are saved. Defaults to `/data/art` when a `/data` volume exists, otherwise memory only. |
+| `DATA_DIR` | Where the volume is mounted (for example `/data`). Pictures go in `<DATA_DIR>/art` and the launch list in `<DATA_DIR>/launches.json`. Defaults to `/data` when that folder exists, otherwise memory only. |
+| `ART_DIR` | Optional. Overrides just the pictures folder. |
+| `LAUNCHES_FILE` | Optional. Overrides where the launch list is saved. |
+| `HIDE_POOLS` | Optional. Comma-separated pool addresses to hide from the public "Recently launched" list. |
 | `LAUNCH_RPC_URL` | Devnet RPC. Default the public one. |
 | `PUBLIC_URL` | This site's address, if it can't be worked out from the request. |
 
@@ -41,6 +44,7 @@ Without a valid key and settings the page says the studio is off. `/healthz` and
 - The image prompt asks for an original character, and the name step is told to avoid existing brands and tokens.
 - Generation is rate limited per address and per day, and every failure gives a generic error.
 - Pictures are saved on the volume at `/data/art` (`<id>.png` or `<id>.jpg`, plus `<id>.json`). Both PNG and JPEG are accepted and checked by their first bytes. A picture used by a launch is kept for good. Animals that were generated but never launched are deleted after a day. With no volume, pictures live in memory only and are lost on restart, and the server says so at startup.
+- The home page lists recent launches (`GET /api/launches`). Each is checked on-chain before it shows, and entries that never got sent are dropped after a day. Moderation is basic: a blocked list of brand and person names at launch time, and `HIDE_POOLS` to remove anything else by hand. There is no profanity filter yet.
 - On Railway, add a volume to the service and mount it at `/data`. If the startup log says the art folder is not usable, the volume is probably not writable by the app's user.
 - This is fine for devnet. For mainnet, move pictures to content-addressed storage such as IPFS, so a token's picture does not depend on this server.
 

@@ -136,7 +136,7 @@ test('server: launch routes work, and POST is allowed nowhere else', async () =>
   const launcher = createLauncher({ presets: PRESETS, load: fakeLoad([]), logger: quiet });
   await withServer({ feed, launcher }, async base => {
     const cfg = await (await fetch(base + '/api/launch/config')).json();
-    assert.deepEqual(cfg, { enabled: true, cluster: 'devnet', presets: ['standard'] });
+    assert.deepEqual(cfg, { enabled: true, cluster: 'devnet', presets: ['standard'], terms: { standard: { totalPct: 1, creatorSharePct: 40 } } });
 
     const post = body => fetch(base + '/api/launch/prepare', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
     const ok = await post(JSON.stringify(good));

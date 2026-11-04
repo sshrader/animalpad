@@ -40,6 +40,35 @@ body { margin: 0; background: var(--ground); color: var(--text); font: 400 16px/
 .mode { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--edge); background: var(--paper); color: var(--text); display: grid; place-items: center; padding: 0; }
 .mode::before { content: ""; width: 16px; height: 16px; border-radius: 50%; background: var(--text); box-shadow: inset -6px -2px 0 0 var(--paper); }
 :root[data-theme="light"] .mode::before { box-shadow: none; background: var(--pop); border: 2px solid var(--edge); width: 14px; height: 14px; }
+.nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.nav a { color: var(--text); font-weight: 600; font-size: 14px; text-underline-offset: 4px; }
+.nav a:hover { color: var(--accent); }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+#recent, #how, #about { scroll-margin-top: 16px; }
+.feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 12px; }
+.feed:empty { display: none; }
+.coin { display: grid; gap: 8px; padding: 10px; border: 2px solid var(--edge); border-radius: 16px; background: var(--soft); min-width: 0; align-content: start; }
+.coin img, .coin .noimg { width: 100%; aspect-ratio: 1; object-fit: cover; border: 2px solid var(--edge); border-radius: 12px; background: var(--paper); display: block; }
+.coin .noimg { display: grid; place-items: center; font: 800 2rem/1 var(--font); color: var(--muted); }
+.coin .top2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.coin strong { font: 700 1rem/1.2 var(--font); overflow-wrap: anywhere; }
+.coin .sym { font-size: 12px; font-weight: 700; color: var(--muted); }
+.coin .meta { font-size: 12px; color: var(--muted); }
+.coin .tbar { height: 10px; }
+.coin .btn { padding: 6px 12px; font-size: 14px; box-shadow: 0 3px 0 var(--edge); }
+.band { display: grid; gap: 14px; }
+.band h2 { margin: 0; font: 800 clamp(1.5rem, 4vw, 2rem)/1.1 var(--font); letter-spacing: -0.02em; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; gap: 6px; align-content: start; padding: 16px; border: 2px solid var(--edge); border-radius: 18px; background: var(--paper); }
+.steps li::before { content: counter(s); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--pop); color: #1c1547; border: 2px solid var(--edge); font-weight: 800; font-size: 14px; }
+.steps b { font: 700 1.1rem/1.2 var(--font); }
+.steps span { color: var(--muted); font-size: 15px; }
+.about { margin: 0; max-width: 62ch; }
+.faq { display: grid; gap: 8px; max-width: 70ch; }
+.faq details { border: 2px solid var(--edge); border-radius: 14px; background: var(--paper); padding: 10px 14px; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq p { margin: 8px 0 0; color: var(--muted); font-size: 15px; }
 .rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
 .rail li { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 2px solid var(--edge); border-radius: 12px; background: var(--paper); color: var(--muted); font-weight: 600; font-size: 14px; }
 .rail li b { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--edge); font-size: 12px; flex: none; }
@@ -140,6 +169,7 @@ details.trade[open] summary::before { transform: rotate(90deg); }
 <main class="wrap">
   <header class="top">
     <p class="brand">AnimalPad</p>
+    <nav class="nav" aria-label="Sections"><a href="#recent">Recent launches</a><a href="#how">How it works</a><a href="#about">About</a></nav>
     <div class="row">
       <span class="chip-net">Devnet test · no real money</span>
       <button type="button" class="mode" id="theme" aria-label="Switch to light mode" title="Switch light or dark"></button>
@@ -238,6 +268,34 @@ details.trade[open] summary::before { transform: rotate(90deg); }
     </details>
   </div>
 
+  <section class="panel" id="recent" aria-labelledby="recent-h">
+    <h2 id="recent-h">Recently launched</h2>
+    <div class="feed" id="feed" aria-live="polite"></div>
+    <p class="hint" id="feed-note">Loading the latest launches…</p>
+  </section>
+
+  <section id="how" class="band" aria-labelledby="how-h">
+    <h2 id="how-h">How it works</h2>
+    <ol class="steps">
+      <li><b>Describe</b><span>Type an animal in a few words. The studio draws it as a sticker-style mascot and suggests a name, a ticker and a one-line description. Reject it as many times as you like.</span></li>
+      <li><b>Make it yours</b><span>Edit the name and ticker, and add your own website and socials if you have them. Links are locked once you start the launch.</span></li>
+      <li><b>Launch</b><span>Your wallet signs one transaction. The site never holds your keys. The token goes live on a bonding curve: buyers trade against it, and the price rises as the curve fills.</span></li>
+      <li><b>Trade and earn</b><span id="fee-note-how">Creators earn a share of the trading fees on the curve, claimed with the wallet that launched it.</span></li>
+    </ol>
+  </section>
+
+  <section id="about" class="band" aria-labelledby="about-h">
+    <h2 id="about-h">About</h2>
+    <p class="about">AnimalPad is a test version of an animal-mascot token launcher, running on Solana devnet. Everything here uses test SOL, which has no value, and so do the tokens. It exists to try the idea out before any real money is involved.</p>
+    <div class="faq">
+      <details><summary>Is this real money?</summary><p>No. It runs on devnet, Solana's test network, with test SOL. Real-money mainnet is switched off in the code.</p></details>
+      <details><summary>Who can claim the creator fees?</summary><p>Only the wallet that launched the token. The site prepares the claim and that wallet signs it.</p></details>
+      <details><summary>What happens when the curve fills?</summary><p>It is ready to move to a regular trading pool. On this test version the team does that step with a script; a button on the page is not built yet.</p></details>
+      <details><summary>Where do the pictures come from?</summary><p>They are made by AI from your description. The studio asks for an original character and refuses well-known characters, brands and people, but it is not perfect. Pictures of launched tokens are kept; animals you do not launch are deleted after a day.</p></details>
+      <details><summary>What does it cost?</summary><p>Test SOL for the network fee and for any buys you make. Nothing else.</p></details>
+    </div>
+  </section>
+
   <p class="foot">Test version on Solana devnet. Pictures are made by AI. Animals you do not launch are deleted after a day; launched ones are kept. Tokens here have no value.</p>
 </main>
 <script src="/wallet.js"></script>
@@ -246,5 +304,6 @@ details.trade[open] summary::before { transform: rotate(90deg); }
 <script src="/chrome.js"></script>
 <script src="/launch.js"></script>
 <script src="/trade.js"></script>
+<script src="/feed.js"></script>
 </body>
 </html>

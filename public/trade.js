@@ -184,6 +184,14 @@
     load(e.detail.pool);
   });
 
+  // The "Trade" buttons in the recent launches list open the card with that pool.
+  document.addEventListener('animalpad:open-pool', e => {
+    $('t-pool').value = e.detail.pool;
+    $('trade').open = true;
+    load(e.detail.pool);
+    $('trade').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
   // The card only shows when launching is switched on for this site.
   $('trade').hidden = true;
   fetch('/api/launch/config', { headers: { Accept: 'application/json' } })
