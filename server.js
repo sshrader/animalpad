@@ -200,7 +200,9 @@ function createApp(opts) {
           // Once a launch has been prepared for this picture its links are frozen. The same links again
           // (a retry after declining in the wallet) are fine; different ones are refused, not ignored.
           const rec = typeof body.art === 'string' ? art.record(body.art) : null;
-          if (rec && rec.pinned && JSON.stringify(sortKeys(links)) !== JSON.stringify(sortKeys(rec.links || {}))) {
+          // The founder picture is exempt: only the founder wallet can launch it, so its links stay editable.
+          const isFounderArt = Boolean(founder && body.art === founder.id);
+          if (rec && rec.pinned && !isFounderArt && JSON.stringify(sortKeys(links)) !== JSON.stringify(sortKeys(rec.links || {}))) {
             return send(res, 409, JSON.stringify({ error: 'links_locked' }), noStore);
           }
         }
@@ -215,7 +217,7 @@ function createApp(opts) {
             }
             if (action === 'prepare' && r.status === 200 && typeof body.art === 'string') {
               // Links are saved, then the picture is kept for good and its links are frozen.
-              if (Object.keys(links).length) art.setLinks(body.art, links);
+              if (Object.keys(links).length) art.setLinks(body.art, links, Boolean(founder && body.art === founder.id));
               art.pin(body.art);
             }
             send(res, r.status, JSON.stringify(r.body), noStore);
@@ -278,6 +280,7 @@ function createApp(opts) {
     // Whether the animal studio is switched on, so the page knows whether to offer it.
     if (pathname === '/api/founder' && (req.method === 'GET' || req.method === 'HEAD')) {
       if (!founder) return send(res, 404, JSON.stringify({ error: 'not_found' }), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' }));
+      if (founder.buf && !art.record(founder.id)) art.seed(founder.buf, founder); // unlaunched pictures are pruned after a day
       return send(res, 200, JSON.stringify({ id: founder.id, imageUrl: '/art/' + founder.id + '.' + (founder.ext || 'png'), name: founder.name, ticker: founder.ticker, description: founder.description }), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' }));
     }
     if (pathname === '/api/art/config') {
@@ -377,8 +380,9 @@ if (require.main === module) {
   const founderFile = path.join(__dirname, 'founder', 'logo.png');
   if (founderWallet && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(founderWallet) && fs.existsSync(founderFile)) {
     const text = { name: env('FOUNDER_NAME') || 'HatchPad', ticker: (env('FOUNDER_SYMBOL') || 'HATCH').toUpperCase(), description: env('FOUNDER_DESCRIPTION') || 'The first coin hatched on HatchPad.' };
-    const id = art.seed(fs.readFileSync(founderFile), text);
-    if (id) founder = Object.assign({ id, ext: 'png', wallet: founderWallet }, text);
+    const buf = fs.readFileSync(founderFile);
+    const id = art.seed(buf, text);
+    if (id) founder = Object.assign({ id, ext: 'png', wallet: founderWallet, buf: buf }, text);
   }
   const server = createApp({ art, launcher, launches, founder, verifier: createVerifier({ secret: verifySecret || undefined }) });
   server.listen(PORT, '0.0.0.0', () => {

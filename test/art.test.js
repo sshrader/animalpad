@@ -487,7 +487,7 @@ test('server: links are checked, stored with the picture, published, and frozen 
   });
 });
 
-test('seed keeps a ready-made picture for good and refuses anything that is not an image', () => {
+test('seed adds a ready-made picture and refuses anything that is not an image', () => {
   const { createArt } = require('../art.js');
   const art = createArt({ provider: 'cloudflare', apiKey: 'x', accountId: 'y' });
   const png = require('fs').readFileSync(require('path').join(__dirname, '..', 'founder', 'logo.png'));
@@ -495,7 +495,31 @@ test('seed keeps a ready-made picture for good and refuses anything that is not 
   assert.match(id, /^[0-9a-f]{16}$/);
   const rec = art.record(id);
   assert.equal(rec.name, 'HatchPad');
-  assert.equal(rec.pinned, true);
+  assert.equal(rec.pinned, false);
   assert.equal(art.seed(Buffer.from('not an image at all, just text'.repeat(10)), { name: 'x', ticker: 'XXX' }), null);
   assert.equal(art.seed(png, { name: '', ticker: 'XXX' }), null);
+});
+
+test('server: the founder picture keeps editable links even after a launch', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'art-'));
+  const art = createArt({ apiKey: 'k', fetchImpl: fakeOpenAI().impl, logger: quiet, dir });
+  const png = fs.readFileSync(path.join(__dirname, '..', 'founder', 'logo.png'));
+  const id = art.seed(png, { name: 'HatchPad', ticker: 'HATCH', description: 'First.' });
+  class PublicKey { constructor(v) { this.v = v; } toBase58() { return this.v; } }
+  const load = async () => ({
+    sdk: { DynamicBondingCurveClient: class { constructor() { this.creator = { createPool: async () => ({ partialSign() {}, serialize() { return Buffer.from('TX'); } }) }; } }, deriveDbcPoolAddress: () => new PublicKey('PoolAddress11111111111111111111111111111111') },
+    web3: { PublicKey, Keypair: { generate: () => ({ publicKey: new PublicKey('Mint1111111111111111111111111111111111111111') }) }, Connection: class { async getLatestBlockhash() { return { blockhash: 'B' }; } } },
+    spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') }
+  });
+  const launcher = createLauncher({ presets: PRESETS, load, logger: quiet, maxPerMinute: 1000 });
+  const founder = { id, ext: 'png', wallet: CREATOR, name: 'HatchPad', ticker: 'HATCH', description: 'First.', buf: png };
+  const body = links => JSON.stringify({ preset: 'standard', name: 'HatchPad', symbol: 'HATCH', creator: CREATOR, art: id, links });
+  await withServer({ art, launcher, founder }, async base => {
+    const post = links => fetch(base + '/api/launch/prepare', { method: 'POST', body: body(links) });
+    assert.equal((await post({ website: 'https://hatchpadsol.xyz' })).status, 200);
+    assert.equal(art.record(id).pinned, true);
+    const changed = await post({ website: 'https://hatchpadsol.xyz', twitter: '@hatchpad' });
+    assert.equal(changed.status, 200, 'founder links can still be changed');
+    assert.equal(art.record(id).links.twitter, 'https://x.com/hatchpad');
+  });
 });

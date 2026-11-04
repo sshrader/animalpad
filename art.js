@@ -215,9 +215,9 @@ function createArt(opts) {
 
   // Saves the creator's links with the picture. Only before launch: once a picture is pinned, its links are
   // frozen, so someone who knows the (public) picture address cannot change a launched token's links.
-  function setLinks(id, links) {
+  function setLinks(id, links, force) {
     const rec = record(id);
-    if (!rec || rec.pinned) return false;
+    if (!rec || (rec.pinned && !force)) return false;
     rec.links = links;
     saveMeta(rec);
     return true;
@@ -368,13 +368,11 @@ function createArt(opts) {
   }
 
   prune();
-  // Adds a ready-made picture (not AI made) and keeps it for good. Returns its id, or null if it is not a valid image.
+  // Adds a ready-made picture (not AI made). It is pinned by the first launch like any other. Returns its id, or null if it is not a valid image.
   function seed(buf, text) {
     const ext = Buffer.isBuffer(buf) && buf.length >= 100 && buf.length <= MAX_IMAGE_BYTES ? imageType(buf) : null;
     if (!ext || !text || !text.name || !text.ticker) return null;
-    const id = keep(buf, { name: String(text.name), ticker: String(text.ticker), description: String(text.description || '') }, ext);
-    pin(id);
-    return id;
+    return keep(buf, { name: String(text.name), ticker: String(text.ticker), description: String(text.description || '') }, ext);
   }
 
   return { info, generate, chat, get, record, pin, seed, setLinks, prune, provider, reason };
