@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnimalPad</title>
+<meta name="description" content="Describe an animal. AI draws it and names it. Approve it, and launch it as a token on a Solana bonding curve. Devnet test version.">
+<style>
+:root {
+  --bg: #fbf5e9; --card: #fffdf7; --ink: #23301f; --muted: #5d6a55; --line: #e4d9c0;
+  --accent: #e8631c; --accent-ink: #ffffff; --leaf: #2f6b3a; --bad: #b3261e; --soft: #f3ead6;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14190f; --card: #1c2316; --ink: #eef0e2; --muted: #a2ad96; --line: #323c28;
+    --accent: #ff7a33; --accent-ink: #1a1206; --leaf: #7fc98c; --bad: #ff8a80; --soft: #252e1d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14190f; --card: #1c2316; --ink: #eef0e2; --muted: #a2ad96; --line: #323c28;
+  --accent: #ff7a33; --accent-ink: #1a1206; --leaf: #7fc98c; --bad: #ff8a80; --soft: #252e1d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 ui-rounded, "Avenir Next", "Segoe UI", system-ui, sans-serif; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-right, 0px)) 56px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 18px; }
+h1 { margin: 0; font: 800 clamp(2rem, 7vw, 3rem)/1.05 ui-rounded, "Avenir Next", system-ui, sans-serif; letter-spacing: -0.02em; text-wrap: balance; }
+h1 span { color: var(--accent); }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 52ch; }
+.pill { display: inline-block; margin-top: 10px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--soft); font-size: 12px; color: var(--muted); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.card h2 { margin: 0; font-size: 1.05rem; }
+.step { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--leaf); color: var(--card); font-size: 13px; margin-right: 8px; }
+input[type="text"], input[type="number"], textarea { width: 100%; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row > input[type="text"] { flex: 1 1 240px; min-width: 0; }
+button { font: inherit; cursor: pointer; border-radius: 10px; padding: 10px 16px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+button.go { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.status { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; min-height: 1.2em; }
+.status.bad { color: var(--bad); }
+.pick { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.pick img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); background: var(--soft); max-width: 100%; }
+.pick .fields { display: grid; gap: 10px; min-width: 0; }
+.pick label { font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+.desc { margin: 0; color: var(--muted); font-size: 14px; }
+@media (max-width: 520px) { .pick { grid-template-columns: 1fr; } .pick img { max-width: 260px; } }
+.castrip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
+.calab { font-size: 11px; letter-spacing: 0.08em; color: var(--muted); }
+.cavalue { font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+.ca-copy { padding: 4px 10px; font-size: 12px; }
+.dl-result { display: grid; gap: 8px; }
+.dl-result a { font-size: 13px; color: var(--leaf); }
+.trade-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.trade-row input[type="text"] { flex: 1 1 220px; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.trade-row input[type="number"] { width: 110px; }
+.tbar { height: 10px; border-radius: 6px; background: var(--soft); border: 1px solid var(--line); overflow: hidden; }
+.tbar i { display: block; height: 100%; width: 0; background: var(--leaf); }
+details.trade summary { cursor: pointer; font-weight: 700; }
+.trade-body { display: grid; gap: 10px; margin-top: 12px; min-width: 0; }
+.dl-status { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.dl-status.bad { color: var(--bad); }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
+.foot { margin: 0; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1>Animal<span>Pad</span></h1>
+    <p class="lede">Describe an animal. AI draws it and names it. Keep it or reject it, and launch the one you love as a token on a bonding curve.</p>
+    <span class="pill">Devnet test version · test SOL only</span>
+  </header>
+
+  <section class="card" id="studio" hidden>
+    <h2><span class="step">1</span>Describe your animal</h2>
+    <div class="row">
+      <input type="text" id="a-prompt" maxlength="120" autocomplete="off" placeholder="a tired heron wearing a tiny crown" aria-label="Describe your animal">
+      <button type="button" class="go" id="a-gen">Draw it</button>
+    </div>
+    <p class="status" id="a-status" role="status"></p>
+
+    <div id="a-card" hidden>
+      <div class="pick">
+        <img id="a-img" alt="Your generated animal logo" width="220" height="220">
+        <div class="fields">
+          <label>Name <input type="text" id="a-name" maxlength="32" autocomplete="off"></label>
+          <label>Ticker <input type="text" id="a-sym" maxlength="10" autocomplete="off"></label>
+          <p class="desc" id="a-desc"></p>
+          <div class="row">
+            <button type="button" class="go" id="a-accept">Accept</button>
+            <button type="button" id="a-redo">Reject, try again</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="launch">
+    <h2><span class="step">2</span>Launch it</h2>
+    <p class="hint" id="dl-hint">Accept an animal first. Then connect Phantom (set to Devnet) and launch it with test SOL.</p>
+    <div id="devnet-launch" hidden style="display:grid;gap:10px">
+      <div class="row">
+        <button type="button" class="go" id="dl-connect">Connect wallet</button>
+        <button type="button" class="go" id="dl-go" hidden>Launch on devnet</button>
+      </div>
+      <p class="dl-status" id="dl-status" role="status"></p>
+      <div class="dl-result" id="dl-result" hidden></div>
+    </div>
+  </section>
+
+  <details class="card trade" id="trade" hidden>
+    <summary><span class="step">3</span>Trade it</summary>
+    <div class="trade-body">
+      <p class="hint">Paste a pool address from a launch here, see how full its curve is, and buy with devnet SOL. Your wallet signs; nothing is sent without your approval.</p>
+      <div class="trade-row">
+        <input type="text" id="t-pool" placeholder="Pool address" autocomplete="off" spellcheck="false" aria-label="Pool address">
+        <button type="button" id="t-load">Load</button>
+      </div>
+      <div id="t-info" hidden style="display:grid;gap:10px">
+        <div class="tbar" role="img" aria-label="Curve progress"><i id="t-bar"></i></div>
+        <p class="dl-status" id="t-prog"></p>
+        <div class="trade-row">
+          <input type="number" id="t-amt" value="0.1" min="0.01" max="5" step="0.01" inputmode="decimal" aria-label="Amount in SOL">
+          <span class="hint">SOL</span>
+          <button type="button" class="go" id="t-buy">Buy</button>
+        </div>
+      </div>
+      <div class="trade-row" id="t-fees" hidden>
+        <span class="dl-status" id="t-fee-text"></span>
+        <button type="button" id="t-claim">Claim creator fees</button>
+      </div>
+      <p class="dl-status bad" id="t-err" role="alert" hidden></p>
+      <p class="dl-status" id="t-status" role="status"></p>
+    </div>
+  </details>
+
+  <p class="foot">Test version on Solana devnet. Pictures are made by AI, kept only briefly, and are not permanent. Tokens here have no value.</p>
+</main>
+<script src="/wallet.js"></script>
+<script src="/studio.js"></script>
+<script src="/launch.js"></script>
+<script src="/trade.js"></script>
+</body>
+</html>

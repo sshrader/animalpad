@@ -1,0 +1,24 @@
+{
+  "network": "devnet",
+  "thresholdSol": 1,
+  "startFeeBps": 2500,
+  "supplyOnMigration": 20,
+  "feeClaimer": "CFyapVaq8njp4N6Qqrw7XETB89GuLkLwHH6huUtcY4Ws",
+  "presets": {
+    "low": {
+      "config": "FQQoRCXpwNToPfhgwojSxCAUT4g6WBg3LaprGnVqZhN9",
+      "totalPct": 0.5,
+      "creatorSharePct": 25
+    },
+    "standard": {
+      "config": "CAAYwzGN4XjofFLZt4iwhMw9L8pH9BY379YjLUo3Qq8o",
+      "totalPct": 1,
+      "creatorSharePct": 40
+    },
+    "creator": {
+      "config": "4W2S5pu7ZZ4M87FEKojBwABZ8aCSGbrCepDL93kLXh8A",
+      "totalPct": 2,
+      "creatorSharePct": 60
+    }
+  }
+}
