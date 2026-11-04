@@ -95,15 +95,17 @@ test('a failed image gives a generic error; a failed or unsafe name falls back',
 
   const noText = await make({ textStatus: 500 }).art.generate({ animal: 'a sleepy heron' }, {});
   assert.equal(noText.status, 200);
-  assert.equal(noText.body.name, 'Heron');
+  assert.equal(noText.body.name, 'Sleepy Heron');
+  assert.equal(noText.body.ticker, 'HERON');
+  assert.equal(noText.body.description, 'A sleepy heron.');
   assert.match(noText.body.ticker, /^[A-Z0-9]{1,10}$/);
 
   const unsafe = await make({ textContent: JSON.stringify({ name: 'Pikachu Coin', ticker: 'PIKA', description: 'x' }) }).art.generate({ animal: 'a sleepy heron' }, {});
-  assert.equal(unsafe.body.name, 'Heron');
+  assert.equal(unsafe.body.name, 'Sleepy Heron');
   const junk = await make({ textContent: 'not json' }).art.generate({ animal: 'a sleepy heron' }, {});
   assert.equal(junk.status, 200);
   const badTicker = await make({ textContent: JSON.stringify({ name: 'Ok', ticker: 'has space!', description: 'x' }) }).art.generate({ animal: 'a sleepy heron' }, {});
-  assert.equal(badTicker.body.name, 'Heron');
+  assert.equal(badTicker.body.name, 'Sleepy Heron');
 });
 
 test('the store keeps only the most recent pictures', async () => {
@@ -272,12 +274,16 @@ function fakeCloudflare(opt) {
   const impl = async (url, init) => {
     seen.push({ url, body: JSON.parse(init.body), auth: init.headers.Authorization });
     const json = v => ({ ok: true, status: 200, json: async () => v });
+    if (/\/ai\/run\/@cf\/meta\//.test(url)) {
+      if (o.textFail) return { ok: false, status: 500, json: async () => ({}) };
+      return json({ result: { response: o.chat || 'Sure! Here you go: {"name":"Crown Heron","ticker":"crown","description":"Rules the pond."} Enjoy.' }, success: true });
+    }
     if (/\/ai\/run\//.test(url)) {
       if (o.fail) return { ok: false, status: 500, json: async () => ({}) };
       if (o.unsuccessful) return json({ success: false, errors: [{ message: 'nope' }] });
       return json({ result: { image: (o.notImage ? Buffer.from('plain text, not an image '.repeat(20)) : JPG).toString('base64') }, success: true });
     }
-    return json({ choices: [{ message: { content: o.chat || 'Sure! Here you go: {"name":"Crown Heron","ticker":"crown","description":"Rules the pond."} Enjoy.' } }] });
+    return json({ choices: [] });
   };
   return { impl, seen };
 }
@@ -297,14 +303,15 @@ test('cloudflare: calls Workers AI with the account, token and model, and accept
   assert.equal(r.body.ticker, 'CROWN');
   assert.ok(art.get(r.body.id).equals(JPG));
   assert.equal(art.record(r.body.id).ext, 'jpg');
-  const img = f.seen.find(x => /\/ai\/run\//.test(x.url));
+  const img = f.seen.find(x => /flux/.test(x.url));
   assert.equal(img.url, 'https://api.cloudflare.com/client/v4/accounts/' + ACCOUNT + '/ai/run/@cf/black-forest-labs/flux-1-schnell');
   assert.equal(img.auth, 'Bearer cf-token');
   assert.equal(img.body.steps, 4);
   assert.match(img.body.prompt, /tired heron/);
-  const chat = f.seen.find(x => /chat\/completions/.test(x.url));
-  assert.equal(chat.url, 'https://api.cloudflare.com/client/v4/accounts/' + ACCOUNT + '/ai/v1/chat/completions');
-  assert.equal(chat.body.model, '@cf/meta/llama-3.1-8b-instruct');
+  const chat = f.seen.find(x => /llama/.test(x.url));
+  assert.equal(chat.url, 'https://api.cloudflare.com/client/v4/accounts/' + ACCOUNT + '/ai/run/@cf/meta/llama-3.1-8b-instruct');
+  assert.equal(chat.auth, 'Bearer cf-token');
+  assert.equal(chat.body.messages[1].content, 'Animal: a tired heron in a tiny crown');
   assert.equal(JSON.stringify(r.body).includes('cf-token'), false);
 });
 
@@ -321,7 +328,9 @@ test('cloudflare: needs a valid account id and safe model names, and fails with 
   }
   const noJson = await cfArt({ chat: 'I cannot do that' }).art.generate({ animal: 'a sleepy heron' }, {});
   assert.equal(noJson.status, 200);
-  assert.equal(noJson.body.name, 'Heron');
+  assert.equal(noJson.body.name, 'Sleepy Heron');
+  const asObject = await cfArt({ chat: undefined }, {}).art.generate({ animal: 'a heron' }, {});
+  assert.equal(asObject.body.name, 'Crown Heron');
 });
 
 test('cloudflare: a JPEG is saved, served as image/jpeg, linked in metadata, and only at its own extension', async () => {
@@ -362,4 +371,16 @@ test('when the studio is off, the reason names the setting and never its value',
   await withServer({ art: cfArt().art }, async base => {
     assert.deepEqual(await (await fetch(base + '/healthz')).json(), { ok: true, art: true });
   });
+});
+
+test('fallback names read well for typical descriptions', async () => {
+  const fall = animal => cfArt({ textFail: true }).art.generate({ animal }, {}).then(r => r.body);
+  const a = await fall('a tired heron wearing a crown');
+  assert.deepEqual([a.name, a.ticker, a.description], ['Tired Heron', 'HERON', 'A tired heron wearing a crown.']);
+  const b = await fall('an angry capybara with sunglasses');
+  assert.deepEqual([b.name, b.ticker], ['Angry Capybara', 'CAPYBA']);
+  const c = await fall('frog');
+  assert.deepEqual([c.name, c.ticker], ['Frog', 'FROG']);
+  const d = await fall('the sleepy red panda riding a bike');
+  assert.deepEqual([d.name, d.ticker], ['Red Panda', 'PANDA']);
 });
