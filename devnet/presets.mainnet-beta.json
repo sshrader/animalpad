@@ -1,0 +1,24 @@
+{
+  "network": "mainnet-beta",
+  "thresholdSol": 20,
+  "startFeeBps": 2500,
+  "supplyOnMigration": 20,
+  "feeClaimer": "9yjvPVhA8JM3KCaHduVtawW7xnvkXWuLJEMAnkSvpN8r",
+  "presets": {
+    "low": {
+      "config": "72oUY3ffihrWUY8g4odGte363SNBvDuU9yNBfMaR2CUZ",
+      "totalPct": 0.5,
+      "creatorSharePct": 25
+    },
+    "standard": {
+      "config": "GutCayTggWJpVfrQ81voztSdp2D5PXxC9JPZXZw1kXub",
+      "totalPct": 1,
+      "creatorSharePct": 40
+    },
+    "creator": {
+      "config": "BgjrqqP6gQgosUzrGvt7WK4DBk6LNKRNtum2XNNmSThv",
+      "totalPct": 2,
+      "creatorSharePct": 60
+    }
+  }
+}
