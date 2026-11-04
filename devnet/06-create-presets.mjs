@@ -10,7 +10,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Keypair } from '@solana/web3.js';
 import { NATIVE_MINT } from '@solana/spl-token';
-import L from '../public/logic.js';
 import { PublicKey } from '@solana/web3.js';
 import { client, loadKey, loadKeyFile, send, makeCurve, IS_MAIN, CLUSTER, arg } from './lib.mjs';
 
@@ -36,7 +35,13 @@ const create = (dbc.partner.createConfig2 || dbc.partner.createConfig).bind(dbc.
 const saved = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, 'utf8')) : {};
 const out = { network: CLUSTER, thresholdSol, startFeeBps, supplyOnMigration, feeClaimer: feeClaimer.toBase58(), presets: saved.presets || {} };
 
-for (const pr of L.PRESETS) {
+// The three fee levels shown on the page: total trading fee (percent) and the creator's share of it.
+const PRESETS = [
+  { id: 'low', total: 0.5, share: 25 },
+  { id: 'standard', total: 1, share: 40 },
+  { id: 'creator', total: 2, share: 60 }
+];
+for (const pr of PRESETS) {
   if (out.presets[pr.id] && !force) { console.log(pr.id + ': already created, ' + out.presets[pr.id].config); continue; }
   const curve = makeCurve(sdk, { steadyFeeBps: Math.round(pr.total * 100), creatorSharePct: pr.share, startFeeBps, thresholdSol, supplyOnMigration });
   const config = Keypair.generate();
