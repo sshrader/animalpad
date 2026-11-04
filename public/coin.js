@@ -107,6 +107,7 @@
     }
     if (B58.test(c.mint || '')) copyButton('Copy CA', c.mint);
     copyButton('Copy buy link', blink);
+    startFees(body, c);
 
     const f = add(body, 'dl', undefined, 'facts');
     function fact(label, node) { add(f, 'dt', label); const dd = add(f, 'dd'); if (typeof node === 'string') dd.textContent = node; else dd.appendChild(node); }
@@ -124,6 +125,58 @@
       link(s, ex(x[1]), x[1]);
       fact(x[0], s);
     });
+  }
+
+  // Creator fees: anyone can see the amount; only the wallet that launched the coin can claim it.
+  function startFees(parent, c) {
+    const W = window.AnimalWallet;
+    const row = add(parent, 'div', undefined, 'cp-fees');
+    const text = add(row, 'span', 'Checking creator fees…', 'hint');
+    const btn = add(row, 'button', 'Claim creator fees', 'btn'); btn.type = 'button'; btn.hidden = true;
+    const status = add(parent, 'p', '', 'hint'); status.setAttribute('role', 'status');
+    let info = null, busy = false;
+    const WHY = {
+      not_creator: 'Only the wallet that launched this coin can claim its creator fees. Switch to that wallet.',
+      nothing_to_claim: 'There are no creator fees to claim yet.',
+      rate_limited: 'Too many requests. Wait a minute.'
+    };
+    function draw() {
+      if (!info) return;
+      const mine = Boolean(W && W.address && W.address === info.creator);
+      text.textContent = 'Creator fees: ' + info.unclaimedSol.toFixed(6) + ' SOL unclaimed' + (info.claimedSol ? ', ' + info.claimedSol.toFixed(6) + ' claimed' : '') +
+        (W && W.address && !mine ? ' · connect the creator wallet to claim' : '');
+      btn.hidden = false;
+      btn.disabled = busy || !mine || !(info.unclaimedSol > 0);
+    }
+    function load() {
+      return fetch('/api/launch/fees?address=' + encodeURIComponent(c.pool), { headers: { Accept: 'application/json' }, cache: 'no-store' })
+        .then(r => (r.ok ? r.json() : null))
+        .then(b => { if (b && typeof b.unclaimedSol === 'number') { info = b; draw(); } else text.textContent = 'Creator fees could not be read right now.'; })
+        .catch(() => { text.textContent = 'Creator fees could not be read right now.'; });
+    }
+    btn.addEventListener('click', async () => {
+      if (!info || busy || !W) return;
+      busy = true; draw(); status.textContent = 'Preparing the claim…';
+      try {
+        const who = W.address || await W.connect();
+        const res = await fetch('/api/launch/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pool: c.pool, creator: who }) });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || typeof data.transaction !== 'string') { status.textContent = WHY[data && data.error] || 'Could not prepare the claim. Try again.'; busy = false; draw(); return; }
+        status.textContent = 'Approve the claim in your wallet…';
+        const sig = await W.signAndSend(data.transaction);
+        status.textContent = 'Sent. Waiting for the network to confirm…';
+        const state = await W.confirm(sig);
+        if (state === 'confirmed') { busy = false; await load(); status.textContent = 'Claimed ✓ The fees were sent to your wallet.'; }
+        else if (state === 'failed') status.textContent = 'The claim failed on-chain. Make sure the wallet has a little SOL for the network fee, then try again.';
+        else status.textContent = 'Not confirmed yet. Reload in a minute to see the result.';
+      } catch (err) {
+        const m = err && err.message ? String(err.message) : '';
+        status.textContent = err && err.code === 'no_wallet' ? W.NO_WALLET : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.' : 'The claim did not go through. Check that the wallet has a little SOL for the network fee.';
+      }
+      busy = false; draw();
+    });
+    document.addEventListener('animalpad:wallet', draw);
+    load();
   }
 
   // Talk to the mascot. Each reply comes from the server; nothing typed here is ever rendered as HTML.

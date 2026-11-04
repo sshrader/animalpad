@@ -182,3 +182,5 @@ details.trade[open] summary::before { transform: rotate(90deg); }
 .wmenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: grid; min-width: 170px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .witem { text-align: left; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 500 14px/1.2 var(--font); cursor: pointer; }
 .witem:hover, .witem:focus-visible { background: var(--soft); }
+
+.cp-fees { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
