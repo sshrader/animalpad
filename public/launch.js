@@ -36,7 +36,7 @@
     const l = document.createElement('span'); l.className = 'calab'; l.textContent = label;
     const c = document.createElement('code'); c.className = 'cavalue'; c.textContent = value;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'ca-copy'; b.dataset.ca = value; b.textContent = 'Copy';
-    b.setAttribute('aria-label', 'Copy ' + label);
+    b.setAttribute('aria-label', 'Copy ' + (label === 'CA' ? 'token contract address' : label));
     d.appendChild(l); d.appendChild(c); d.appendChild(b);
     return d;
   }
@@ -44,7 +44,7 @@
   function showResult(r, signature) {
     const box = $('dl-result');
     box.innerHTML = '';
-    box.appendChild(strip('MINT', r.mint));
+    box.appendChild(strip('CA', r.mint));
     box.appendChild(strip('POOL', r.pool));
     const links = document.createElement('div');
     [['Transaction', 'https://explorer.solana.com/tx/' + encodeURIComponent(signature) + AnimalNet.suffix],

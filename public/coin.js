@@ -96,12 +96,17 @@
     tw.target = '_blank'; tw.rel = 'noopener noreferrer';
     // A Blink: a link that opens a buy for this coin in a Blink-aware viewer, with no need to visit this site.
     const blink = 'https://dial.to/?action=' + encodeURIComponent('solana-action:' + location.origin + '/api/actions/trade/' + c.pool) + AnimalNet.dialSuffix;
-    const cp = add(acts, 'button', 'Copy buy link', 'btn'); cp.type = 'button';
-    cp.addEventListener('click', () => {
-      const done = () => { cp.textContent = 'Copied'; setTimeout(() => { cp.textContent = 'Copy buy link'; }, 2000); };
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(blink).then(done, () => { cp.textContent = 'Copy failed'; });
-      else cp.textContent = 'Copy not available';
-    });
+    function copyButton(label, text) {
+      const b = add(acts, 'button', label, 'btn'); b.type = 'button';
+      b.addEventListener('click', () => {
+        const done = () => { b.textContent = 'Copied'; setTimeout(() => { b.textContent = label; }, 2000); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => { b.textContent = 'Copy failed'; });
+        else b.textContent = 'Copy not available';
+      });
+      return b;
+    }
+    if (B58.test(c.mint || '')) copyButton('Copy CA', c.mint);
+    copyButton('Copy buy link', blink);
 
     const f = add(body, 'dl', undefined, 'facts');
     function fact(label, node) { add(f, 'dt', label); const dd = add(f, 'dd'); if (typeof node === 'string') dd.textContent = node; else dd.appendChild(node); }
@@ -113,7 +118,7 @@
     if (Number(c.devBuySol) > 0) fact('Creator first buy', 'The creator bought ' + Number(c.devBuySol) + ' SOL worth in the launch transaction, before anyone else could.');
     fact('Launched', when(c.createdAt));
     const ex = a => 'https://explorer.solana.com/address/' + encodeURIComponent(a) + AnimalNet.suffix;
-    [['Token address', c.mint], ['Pool address', c.pool], ['Creator wallet', c.creator]].forEach(x => {
+    [['Token address (CA)', c.mint], ['Pool address', c.pool], ['Creator wallet', c.creator]].forEach(x => {
       if (!B58.test(x[1] || '')) return;
       const s = document.createElement('span');
       link(s, ex(x[1]), x[1]);
