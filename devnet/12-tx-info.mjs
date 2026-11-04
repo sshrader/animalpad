@@ -15,6 +15,14 @@ keys.forEach((k, i) => {
   const d = (tx.meta.postBalances[i] - tx.meta.preBalances[i]) / 1e9;
   if (Math.abs(d) > 0.000001) console.log('  ' + k.toBase58() + '  ' + (d > 0 ? '+' : '') + d.toFixed(6));
 });
+console.log('\nToken balance changes (who holds what after this transaction):');
+const tb = (list, k) => (list || []).filter(b => b.accountIndex === k);
+const idxs = new Set([...(tx.meta.preTokenBalances || []), ...(tx.meta.postTokenBalances || [])].map(b => b.accountIndex));
+for (const i of idxs) {
+  const pre = tb(tx.meta.preTokenBalances, i)[0], post = tb(tx.meta.postTokenBalances, i)[0];
+  const b = post || pre;
+  console.log('  account ' + keys[i].toBase58() + '  owner ' + b.owner + '  mint ' + b.mint + '  ' + (pre ? pre.uiTokenAmount.uiAmountString : '-') + ' -> ' + (post ? post.uiTokenAmount.uiAmountString : '(closed)'));
+}
 console.log('\nProgram steps (from the log):');
 (tx.meta.logMessages || []).filter(l => /Instruction:|invoke \[1\]|failed|Error/i.test(l)).forEach(l => console.log('  ' + l));
 console.log('\ninstructions in the transaction: ' + (tx.transaction.message.compiledInstructions || tx.transaction.message.instructions).length);
