@@ -84,3 +84,7 @@ git add devnet/presets.json
 git commit -m "Add devnet fee preset configs"
 git push
 ```
+
+## Importing the fee claimer into Phantom
+
+The fee claimer is the `partner` key in `devnet/keys/partner.json`. To claim from the site's `/admin` page, import it into Phantom: run `node 08-export-key.mjs partner` in this folder, then in Phantom choose the account menu, Add / Connect Wallet, Import Private Key, and paste the printed text. Devnet keys only. For a mainnet fee claimer use a fresh wallet or a Ledger and never export the key.
