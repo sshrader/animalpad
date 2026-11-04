@@ -78,6 +78,8 @@ details.trade summary { cursor: pointer; font-weight: 700; }
 
   <section class="card" id="studio" hidden>
     <h2><span class="step">1</span>Describe your animal</h2>
+    <p class="status bad" id="a-off" hidden>The animal studio is switched off on this server, so no pictures can be made yet. The site owner needs to finish its image settings. Open /healthz to see which one.</p>
+    <div id="a-on" style="display:grid;gap:12px">
     <div class="row">
       <input type="text" id="a-prompt" maxlength="120" autocomplete="off" placeholder="a tired heron wearing a tiny crown" aria-label="Describe your animal">
       <button type="button" class="go" id="a-gen">Draw it</button>
@@ -97,6 +99,7 @@ details.trade summary { cursor: pointer; font-weight: 700; }
           </div>
         </div>
       </div>
+    </div>
     </div>
   </section>
 

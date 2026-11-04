@@ -8,6 +8,7 @@
   let current = null; // the result being reviewed
   let busy = false;
   let enabled = false;
+  let loaded = false; // the config answer has arrived
 
   const WHY = {
     bad_prompt: 'Describe the animal in a few words, like "a tired heron in a tiny crown".',
@@ -25,7 +26,9 @@
   }
 
   function render() {
-    $('studio').hidden = !enabled;
+    $('studio').hidden = !loaded;
+    $('a-off').hidden = enabled;
+    $('a-on').hidden = !enabled;
     $('a-gen').disabled = busy;
     $('a-redo').disabled = busy;
     $('a-accept').disabled = busy;
@@ -88,8 +91,8 @@
 
   fetch('/api/art/config', { headers: { Accept: 'application/json' } })
     .then(r => r.json())
-    .then(info => { enabled = Boolean(info && info.enabled); render(); })
-    .catch(() => { enabled = false; render(); });
+    .then(info => { enabled = Boolean(info && info.enabled); loaded = true; render(); })
+    .catch(() => { enabled = false; loaded = true; render(); });
   render();
 })();
 

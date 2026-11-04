@@ -18,7 +18,7 @@ npm install
 IMAGE_PROVIDER=cloudflare CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... node server.js
 ```
 
-Without a key (or with an invalid account id) the animal studio is hidden. Without `devnet/presets.json` launching is hidden.
+Without a valid key and settings the page says the studio is off. `/healthz` and the startup log name the missing setting (never its value). Pasted settings are trimmed of stray spaces and quotes. Without `devnet/presets.json` launching is hidden.
 
 | Variable | Purpose |
 | --- | --- |

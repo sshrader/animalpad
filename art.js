@@ -88,7 +88,12 @@ function createArt(opts) {
   let day = Math.floor(now() / 86400000);
   let today = 0;
 
-  const enabled = Boolean(apiKey) && (!cf || (/^[0-9a-f]{32}$/i.test(accountId) && CF_MODEL_RE.test(imageModel) && CF_MODEL_RE.test(textModel)));
+  // Why the studio is off, in words that name the setting but never its value.
+  const reason = !apiKey ? (cf ? 'CLOUDFLARE_API_TOKEN is not set' : 'OPENAI_API_KEY is not set')
+    : cf && !/^[0-9a-f]{32}$/i.test(accountId) ? 'CLOUDFLARE_ACCOUNT_ID is missing or is not a 32-character id'
+    : cf && !(CF_MODEL_RE.test(imageModel) && CF_MODEL_RE.test(textModel)) ? 'IMAGE_MODEL and TEXT_MODEL must be Cloudflare models that start with @cf/'
+    : '';
+  const enabled = reason === '';
 
   function info() { return { enabled }; }
 
@@ -261,7 +266,7 @@ function createArt(opts) {
   }
 
   prune();
-  return { info, generate, get, record, pin, prune, provider };
+  return { info, generate, get, record, pin, prune, provider, reason };
 }
 
 module.exports = { createArt, ID_RE };

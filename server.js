@@ -153,7 +153,9 @@ function createApp(opts) {
 
     // Health check for the host platform.
     if (pathname === '/healthz') {
-      return send(res, 200, JSON.stringify({ ok: true, art: art.info().enabled }), JSON_TYPE);
+      const body = { ok: true, art: art.info().enabled };
+      if (art.reason) body.artReason = art.reason;
+      return send(res, 200, JSON.stringify(body), JSON_TYPE);
     }
 
     if (pathname.endsWith('/')) pathname += 'index.html';
@@ -180,14 +182,16 @@ if (require.main === module) {
   const artDir = process.env.ART_DIR || (fs.existsSync('/data') ? '/data/art' : '');
   // IMAGE_PROVIDER=cloudflare uses Workers AI (needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN).
   // Anything else uses OpenAI (needs OPENAI_API_KEY). IMAGE_MODEL and TEXT_MODEL override the defaults.
-  const cloudflare = process.env.IMAGE_PROVIDER === 'cloudflare';
+  // Settings pasted into a host's form often carry stray spaces, line breaks or quotes; strip them.
+  const env = name => String(process.env[name] || '').trim().replace(/^(['"])(.*)\1$/, '$2').trim();
+  const cloudflare = env('IMAGE_PROVIDER').toLowerCase() === 'cloudflare';
   const art = createArt({
     dir: artDir,
     provider: cloudflare ? 'cloudflare' : 'openai',
-    apiKey: (cloudflare ? process.env.CLOUDFLARE_API_TOKEN : process.env.OPENAI_API_KEY) || '',
-    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
-    imageModel: process.env.IMAGE_MODEL || process.env.OPENAI_IMAGE_MODEL || undefined,
-    textModel: process.env.TEXT_MODEL || process.env.OPENAI_TEXT_MODEL || undefined,
+    apiKey: cloudflare ? env('CLOUDFLARE_API_TOKEN') : env('OPENAI_API_KEY'),
+    accountId: env('CLOUDFLARE_ACCOUNT_ID'),
+    imageModel: env('IMAGE_MODEL') || env('OPENAI_IMAGE_MODEL') || undefined,
+    textModel: env('TEXT_MODEL') || env('OPENAI_TEXT_MODEL') || undefined,
     perIpPerHour: Number(process.env.ART_PER_IP_PER_HOUR) || undefined,
     dailyCap: Number(process.env.ART_DAILY_CAP) || undefined
   });
@@ -197,7 +201,7 @@ if (require.main === module) {
   });
   const server = createApp({ art, launcher });
   server.listen(PORT, '0.0.0.0', () => {
-    console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio off: set the image provider key)') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
+    console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio OFF: ' + art.reason + '; provider ' + art.provider + ')') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
       (launcher.info().enabled ? ' (devnet launch on)' : ' (devnet launch off: no devnet/presets.json)'));
   });
   // Railway stops containers with SIGTERM; close cleanly.

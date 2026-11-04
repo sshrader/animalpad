@@ -344,3 +344,22 @@ test('cloudflare: a JPEG is saved, served as image/jpeg, linked in metadata, and
     assert.equal(meta.image, base + '/art/' + id + '.jpg');
   });
 });
+
+test('when the studio is off, the reason names the setting and never its value', async () => {
+  assert.equal(createArt({ provider: 'cloudflare', apiKey: '', accountId: ACCOUNT, logger: quiet }).reason, 'CLOUDFLARE_API_TOKEN is not set');
+  assert.match(createArt({ provider: 'cloudflare', apiKey: 'secret-token', accountId: '', logger: quiet }).reason, /CLOUDFLARE_ACCOUNT_ID/);
+  assert.match(createArt({ provider: 'cloudflare', apiKey: 'secret-token', accountId: '"abc"', logger: quiet }).reason, /32-character/);
+  assert.match(createArt({ provider: 'cloudflare', apiKey: 'secret-token', accountId: ACCOUNT, imageModel: 'gpt-image-1', logger: quiet }).reason, /@cf\//);
+  assert.equal(createArt({ apiKey: '', logger: quiet }).reason, 'OPENAI_API_KEY is not set');
+  assert.equal(cfArt().art.reason, '');
+  for (const a of [createArt({ provider: 'cloudflare', apiKey: 'secret-token', accountId: 'bad', logger: quiet })]) assert.equal(a.reason.includes('secret-token'), false);
+  await withServer({ art: createArt({ provider: 'cloudflare', apiKey: 'secret-token', accountId: '', logger: quiet }) }, async base => {
+    const h = await (await fetch(base + '/healthz')).json();
+    assert.equal(h.art, false);
+    assert.match(h.artReason, /CLOUDFLARE_ACCOUNT_ID/);
+    assert.equal(JSON.stringify(h).includes('secret-token'), false);
+  });
+  await withServer({ art: cfArt().art }, async base => {
+    assert.deepEqual(await (await fetch(base + '/healthz')).json(), { ok: true, art: true });
+  });
+});
