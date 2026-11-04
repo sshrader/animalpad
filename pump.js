@@ -225,13 +225,19 @@ function createBuilder(web3) {
     return instruction('fees', 'create_fee_sharing_config', {}, { payer, mint }).instruction;
   }
 
-  function setShares({ mint, authority, shareholders }) {
+  // update_fee_shares_v2 pays out whatever is waiting to the CURRENT shareholders before it swaps in the new list,
+  // so those wallets must be passed after the fixed accounts, in the order stored on-chain. A brand new split
+  // config holds just the creator (docs/instructions/CREATOR_FEE_SHARING.md), which is what Sparkpad's working
+  // launch passes too (currentShareholders: [creator]).
+  function setShares({ mint, authority, shareholders, currentShareholders }) {
     const total = shareholders.reduce((s, x) => s + x.bps, 0);
     if (total !== 10000) throw new Error('Shares must add up to 10000 bps');
     const sharingConfig = sharingConfigOf(mint);
+    const current = (currentShareholders && currentShareholders.length ? currentShareholders : [authority]).map(a => ({ pubkey: a, isWritable: true }));
     return instruction('fees', 'update_fee_shares_v2',
       { shareholders: shareholders.map(s => ({ address: pk(s.address), share_bps: s.bps })) },
-      { authority, mint, quote_mint: WSOL, token_program: TOKEN, sharing_config: sharingConfig }
+      { authority, mint, quote_mint: WSOL, token_program: TOKEN, sharing_config: sharingConfig },
+      current
     ).instruction;
   }
 

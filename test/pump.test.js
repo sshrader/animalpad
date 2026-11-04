@@ -30,6 +30,11 @@ test('fee sharing: platform and creator shares must add to 100%', () => {
   // vec of 2 shareholders: u32 + 2 * (32 + 2)
   assert.equal(ok.data.length, 8 + 4 + 2 * 34);
   assert.throws(() => B.setShares({ mint, authority: user, shareholders: [{ address: user, bps: 8000 }, { address: platform, bps: 1000 }] }), /10000/);
+  // the current shareholders (just the creator, on a new split) ride along after the fixed accounts
+  const fixed = B.resolveAccounts('fees', 'update_fee_shares_v2', { authority: user, mint, quote_mint: P.WSOL, token_program: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }).keys.length;
+  assert.equal(ok.keys.length, fixed + 1);
+  assert.equal(ok.keys[fixed].pubkey.toBase58(), user.toBase58());
+  assert.equal(ok.keys[fixed].isWritable, true);
   const cfg = B.createSharingConfig({ mint, payer: user });
   assert.equal(cfg.data.length, 8);
   assert.equal(cfg.keys.length, 10); // the three optional pool accounts are left off

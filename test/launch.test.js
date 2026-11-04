@@ -136,6 +136,7 @@ test('step: waits for the coin, then asks for the fee split, then the first buy,
   assert.equal(set.readUInt32LE(8), 2);
   assert.equal(set.readUInt16LE(8 + 4 + 32), 8000);
   assert.equal(set.readUInt16LE(8 + 4 + 34 + 32), 2000);
+  assert.ok(t.instructions.filter(i => i.program === pump.PUMP_FEES)[1].keys >= 20, 'the current shareholder is passed along');
 
   st.putCurve(mint, { creator: st.B.sharingConfigOf(mint).toBase58() });
   const buy = await launcher.step(input, ctx);
