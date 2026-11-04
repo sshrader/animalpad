@@ -25,6 +25,11 @@
     el.className = 'status' + (bad ? ' bad' : '');
   }
 
+  function tag() {
+    $('a-tag-name').textContent = $('a-name').value.trim();
+    $('a-tag-sym').textContent = '$' + $('a-sym').value.replace(/^\$/, '').trim().toUpperCase();
+  }
+
   function render() {
     $('studio').hidden = !loaded;
     $('a-off').hidden = enabled;
@@ -33,9 +38,12 @@
     $('a-redo').disabled = busy;
     $('a-accept').disabled = busy;
     $('a-card').hidden = !current;
+    $('stage').dataset.state = busy ? 'drawing' : current ? 'ready' : 'empty';
+    $('empty-text').textContent = busy ? 'Drawing. This takes about half a minute.' : 'Your animal shows up here';
     if (current) {
       $('a-img').src = current.imageUrl;
       $('a-desc').textContent = current.description;
+      tag();
     }
   }
 
@@ -58,6 +66,11 @@
         $('a-name').value = data.name;
         $('a-sym').value = data.ticker;
         say('Here it is. Accept it, or reject it and try again.');
+        // On a phone the picture sits below the form, so bring it into view.
+        if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches) {
+          const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          requestAnimationFrame(() => $('stage').scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'center' }));
+        }
       }
     } catch (err) {
       say('Could not reach the studio. Try again.', true);
@@ -84,6 +97,8 @@
     generate();
   }
 
+  $('a-name').addEventListener('input', tag);
+  $('a-sym').addEventListener('input', tag);
   $('a-gen').addEventListener('click', generate);
   $('a-prompt').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); generate(); } });
   $('a-accept').addEventListener('click', accept);
