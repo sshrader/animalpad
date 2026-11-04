@@ -1,4 +1,4 @@
-# AnimalPad devnet spike
+# HatchPad devnet spike
 
 Proves the Meteora Dynamic Bonding Curve lifecycle on **devnet**: create config, launch a token, buy until the curve is full, migrate to DAMM v2. Nothing here touches the website or real money.
 

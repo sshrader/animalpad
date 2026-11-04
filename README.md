@@ -1,4 +1,4 @@
-# AnimalPad
+# HatchPad
 
 Describe an animal. AI draws the logo and suggests a name, ticker and description. Accept it, or reject it and try again. Then launch it as a token on a Meteora bonding curve, trade it, and claim the creator's fees.
 
@@ -75,7 +75,7 @@ The launch panel has an optional first buy (0.01 to 5 SOL). It is put in the sam
 
 ## Website verification
 
-A coin whose creator added a website shows a "Verify it" box with a code that belongs to that coin. The creator saves the code in `/.well-known/animalpad-verify.txt` on their site, or anywhere on the page they linked. `POST /api/coin/verify` then fetches those two addresses and, if it finds the code, saves that the site is verified. The fetch is locked down: https on port 443 only, names only (no IP addresses), public addresses only (checked at connect time), no redirects, 6 second timeout, 16 KB limit. Checks are limited to 10 per visitor per hour and one per coin every 20 seconds. This proves control of the website only. It does not verify X or Telegram.
+A coin whose creator added a website shows a "Verify it" box with a code that belongs to that coin. The creator saves the code in `/.well-known/hatchpad-verify.txt` on their site, or anywhere on the page they linked. `POST /api/coin/verify` then fetches those two addresses and, if it finds the code, saves that the site is verified. The fetch is locked down: https on port 443 only, names only (no IP addresses), public addresses only (checked at connect time), no redirects, 6 second timeout, 16 KB limit. Checks are limited to 10 per visitor per hour and one per coin every 20 seconds. This proves control of the website only. It does not verify X or Telegram.
 
 ## Platform fee claiming (/admin)
 

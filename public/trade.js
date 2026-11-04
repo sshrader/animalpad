@@ -1,4 +1,4 @@
-/* Trade card: look up a AnimalPad launch by its pool address, see how full its curve is, and buy
+/* Trade card: look up a HatchPad launch by its pool address, see how full its curve is, and buy
    with SOL. The server prepares the swap, your wallet signs it. Devnet only. */
 (function () {
   'use strict';
@@ -26,7 +26,7 @@
   const WHY = {
     bad_pool: 'That is not a valid pool address.',
     pool_not_found: 'No pool found at that address on this network.',
-    not_an_animalpad_pool: 'That pool was not launched through AnimalPad.',
+    not_an_animalpad_pool: 'That pool was not launched through HatchPad.',
     rate_limited: 'Too many requests. Wait a minute.',
     bad_amount: 'Enter an amount between 0.01 and 5 SOL.',
     curve_full: 'The curve is full and moving to its DEX pool, so there is nothing left to buy here.',

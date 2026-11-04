@@ -1,5 +1,5 @@
 {
-  "name": "animalpad",
+  "name": "hatchpad",
   "version": "0.1.0",
   "private": true,
   "description": "Describe an animal, get a logo, name and description from AI, approve it, and launch it as a token on a Solana bonding curve (devnet).",

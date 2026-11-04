@@ -46,7 +46,7 @@
   }
 
   function render(c, cfg) {
-    document.title = c.name + ' · AnimalPad';
+    document.title = c.name + ' · HatchPad';
     box.textContent = '';
     const grid = add(box, 'div', undefined, 'coinpage');
 
@@ -92,7 +92,7 @@
     const t = add(acts, 'a', 'Trade this coin', 'btn go');
     t.href = '/?pool=' + encodeURIComponent(c.pool) + '#trade';
     const tw = add(acts, 'a', 'Share on X', 'btn');
-    tw.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(c.name + ' ($' + c.symbol + ') on AnimalPad' + (AnimalNet.main ? '' : ', a devnet test coin')) + '&url=' + encodeURIComponent(location.origin + '/coin/' + c.pool);
+    tw.href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(c.name + ' ($' + c.symbol + ') on HatchPad' + (AnimalNet.main ? '' : ', a devnet test coin')) + '&url=' + encodeURIComponent(location.origin + '/coin/' + c.pool);
     tw.target = '_blank'; tw.rel = 'noopener noreferrer';
     // A Blink: a link that opens a buy for this coin in a Blink-aware viewer, with no need to visit this site.
     const blink = 'https://dial.to/?action=' + encodeURIComponent('solana-action:' + location.origin + '/api/actions/trade/' + c.pool) + AnimalNet.dialSuffix;
@@ -162,7 +162,7 @@
     const b = add(d, 'div', undefined, 'verify-body');
     let host = '';
     try { host = new URL(website).origin; } catch (e) { return; }
-    add(b, 'p', 'Put this code on your website, then press Check. Either save it as a text file at ' + host + '/.well-known/animalpad-verify.txt, or add it anywhere on the page you linked (' + website + ').', 'hint');
+    add(b, 'p', 'Put this code on your website, then press Check. Either save it as a text file at ' + host + '/.well-known/hatchpad-verify.txt, or add it anywhere on the page you linked (' + website + ').', 'hint');
     const code = add(b, 'code', c.verifyCode, 'vcode');
     const row = add(b, 'div', undefined, 'row');
     const check = add(row, 'button', 'Check my website', 'btn'); check.type = 'button';

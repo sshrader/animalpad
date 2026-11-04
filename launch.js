@@ -199,7 +199,7 @@ function createLauncher(opts) {
     }
   }
 
-  // Loads a pool and checks it was made from one of our preset configs, so this only ever serves AnimalPad launches.
+  // Loads a pool and checks it was made from one of our preset configs, so this only ever serves HatchPad launches.
   async function readPool(address) {
     const { sdk, web3, spl, BN } = await load();
     const connection = new web3.Connection(rpcUrl, 'confirmed');
@@ -445,7 +445,7 @@ function metadataFor(name, symbol, art, base, cluster) {
   const n = cleanText(name, 32);
   const s = typeof symbol === 'string' ? symbol.replace(/^\$/, '').trim().toUpperCase() : '';
   if (!n || !SYMBOL_RE.test(s)) return null;
-  const description = art && art.description ? cleanText(art.description, 200) : (cluster === 'mainnet-beta' ? 'A coin launched on AnimalPad.' : 'A devnet test token launched on AnimalPad.');
+  const description = art && art.description ? cleanText(art.description, 200) : (cluster === 'mainnet-beta' ? 'A coin launched on HatchPad.' : 'A devnet test token launched on HatchPad.');
   const meta = { name: n, symbol: s, description, image: art && art.id && base ? base + '/art/' + art.id + '.' + (art.ext === 'jpg' ? 'jpg' : 'png') : '' };
   // The creator's own links, in the field names wallets and explorers read.
   const links = art && art.links && typeof art.links === 'object' ? art.links : {};

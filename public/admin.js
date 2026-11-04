@@ -25,7 +25,7 @@
     not_fee_claimer: 'This wallet is not the fee claimer, so it cannot claim.',
     nothing_to_claim: 'Nothing to claim on that coin right now.',
     rate_limited: 'Too many requests. Wait a minute.',
-    not_an_animalpad_pool: 'That pool is not an AnimalPad coin.',
+    not_an_animalpad_pool: 'That pool is not an HatchPad coin.',
     fees_read_failed: 'The server could not read the fees from the chain. Public RPCs often refuse this lookup. Set LAUNCH_RPC_URL on the server to a dedicated RPC address (Helius or QuickNode), and check the server log for "Partner fee read failed".',
     launch_unavailable: 'Launching is not switched on for this site, so there are no fees to read.'
   };

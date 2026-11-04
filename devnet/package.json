@@ -1,9 +1,9 @@
 {
-  "name": "animalpad-devnet",
+  "name": "hatchpad-devnet",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Devnet spike: Meteora Dynamic Bonding Curve lifecycle for AnimalPad. Not used by the website.",
+  "description": "Devnet spike: Meteora Dynamic Bonding Curve lifecycle for HatchPad. Not used by the website.",
   "scripts": {
     "keys": "node 00-keys.mjs",
     "config": "node 01-create-config.mjs",

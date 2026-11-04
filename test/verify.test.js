@@ -34,15 +34,15 @@ test('the code is specific to the coin, and the check finds it on the site', asy
   const v = createVerifier({ secret: 's', fetchText: async u => { seen.push(u); return pages[u] ? { status: 200, text: pages[u] } : { status: 404 }; } });
   const coin = { pool: POOL, creator: CREATOR, links: { website: 'https://crown.example/about' } };
   const code = v.code(POOL, CREATOR);
-  assert.match(code, /^animalpad-[0-9a-f]{20}$/);
+  assert.match(code, /^hatchpad-[0-9a-f]{20}$/);
   assert.notEqual(code, v.code('other', CREATOR));
   assert.notEqual(code, createVerifier({ secret: 't' }).code(POOL, CREATOR));
   assert.deepEqual((await v.check(coin)).body, { verified: false });
-  assert.deepEqual(seen, ['https://crown.example/.well-known/animalpad-verify.txt', 'https://crown.example/about']);
-  pages['https://crown.example/.well-known/animalpad-verify.txt'] = 'hello ' + code + '\n';
+  assert.deepEqual(seen, ['https://crown.example/.well-known/hatchpad-verify.txt', 'https://crown.example/about']);
+  pages['https://crown.example/.well-known/hatchpad-verify.txt'] = 'hello ' + code + '\n';
   assert.deepEqual((await v.check(coin)).body, { verified: true });
-  delete pages['https://crown.example/.well-known/animalpad-verify.txt'];
-  pages['https://crown.example/about'] = '<p>animalpad-0000000000000000000a</p>'; // someone else's code
+  delete pages['https://crown.example/.well-known/hatchpad-verify.txt'];
+  pages['https://crown.example/about'] = '<p>hatchpad-0000000000000000000a</p>'; // someone else's code
   assert.deepEqual((await v.check(coin)).body, { verified: false });
   pages['https://crown.example/about'] = '<footer>' + code + '</footer>';
   assert.deepEqual((await v.check(coin)).body, { verified: true });

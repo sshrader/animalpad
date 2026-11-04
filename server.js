@@ -1,6 +1,6 @@
 'use strict';
 
-// Static server plus the animal studio and devnet launch API for AnimalPad.
+// Static server plus the animal studio and devnet launch API for HatchPad.
 // Railway sets PORT; locally it falls back to 3000.
 const http = require('http');
 const fs = require('fs');
@@ -368,7 +368,7 @@ if (require.main === module) {
   }
   const server = createApp({ art, launcher, launches, verifier: createVerifier({ secret: verifySecret || undefined }) });
   server.listen(PORT, '0.0.0.0', () => {
-    console.log('AnimalPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio OFF: ' + art.reason + '; provider ' + art.provider + ')') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
+    console.log('HatchPad listening on port ' + PORT + (art.info().enabled ? ' (animal studio on, ' + art.provider + ')' : ' (animal studio OFF: ' + art.reason + '; provider ' + art.provider + ')') + (artDir ? ' (pictures saved in ' + artDir + ')' : ' (pictures in memory only: no volume)') +
       (launcher.info().enabled ? ' (' + cluster + ' launch on)' : ' (' + cluster + ' launch off: no matching presets file in devnet/)') + (launchesFile ? ' (launch list saved in ' + launchesFile + ')' : ' (launch list in memory only)'));
   });
   // Railway stops containers with SIGTERM; close cleanly.

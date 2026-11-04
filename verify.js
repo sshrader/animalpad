@@ -62,7 +62,7 @@ function fetchText(urlString, lookup) {
     const finish = v => { if (!done) { done = true; resolve(v); } };
     const req = https.get({
       protocol: 'https:', hostname: u.hostname, port: 443, path: u.pathname + u.search, lookup: lookup || safeLookup,
-      headers: { 'User-Agent': 'AnimalPad-verify/1', Accept: 'text/html,text/plain' }, timeout: TIMEOUT_MS
+      headers: { 'User-Agent': 'HatchPad-verify/1', Accept: 'text/html,text/plain' }, timeout: TIMEOUT_MS
     }, res => {
       if (res.statusCode !== 200) { res.resume(); return finish({ status: res.statusCode }); }
       let size = 0;
@@ -88,7 +88,7 @@ function createVerifier(opts) {
 
   // The code for one coin. It is not secret (it ends up on a public website), it just has to be specific to the coin.
   function code(pool, creator) {
-    return 'animalpad-' + crypto.createHmac('sha256', secret).update(String(pool) + ':' + String(creator)).digest('hex').slice(0, 20);
+    return 'hatchpad-' + crypto.createHmac('sha256', secret).update(String(pool) + ':' + String(creator)).digest('hex').slice(0, 20);
   }
 
   // Where to look: a plain file on the site, or the address the coin links to.
@@ -96,7 +96,7 @@ function createVerifier(opts) {
     let u;
     try { u = new URL(website); } catch (e) { return []; }
     if (u.protocol !== 'https:') return [];
-    return [u.origin + '/.well-known/animalpad-verify.txt', u.href];
+    return [u.origin + '/.well-known/hatchpad-verify.txt', u.href];
   }
 
   // Returns { status: 200, body: { verified } } or an error result.
