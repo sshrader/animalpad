@@ -27,13 +27,19 @@ function fakeLoad(calls) {
           createPool: async params => {
             calls.push(params);
             return { partialSign(k) { this.signedBy = k.publicKey.toBase58(); }, serialize() { return Buffer.from('TX-BYTES'); } };
+          },
+          createPoolWithFirstBuy: async params => {
+            calls.push({ firstBuy: params });
+            const tx = { added: [], partialSign(k) { this.signedBy = k.publicKey.toBase58(); }, add(x) { this.added.push(x); return this; }, serialize() { return Buffer.from('FIRST-BUY-TX'); } };
+            return calls.shape === 'object' ? { createPoolTx: tx, swapBuyTx: { swap: true } } : tx;
           }
         };
       }
     },
     deriveDbcPoolAddress: () => new PublicKey('PoolAddress11111111111111111111111111111111')
   };
-  return async () => ({ sdk, web3, spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') } });
+  class BN { constructor(v) { this.v = v; } toString() { return String(this.v); } }
+  return async () => ({ sdk, web3, BN, spl: { NATIVE_MINT: new PublicKey('So11111111111111111111111111111111111111112') } });
 }
 
 const ctx = { ip: '1.2.3.4', baseUrl: 'https://draftpad.example' };
@@ -432,4 +438,35 @@ test('server: admin fee routes and the /admin page', async () => {
   await withServer({ feed }, async base => {
     assert.equal((await fetch(base + '/api/admin/fees')).status, 503);
   });
+});
+
+test('prepare with a first buy puts the creator\'s buy in the same transaction as the launch', async () => {
+  const calls = [];
+  const l = createLauncher({ presets: PRESETS, load: fakeLoad(calls), logger: quiet, maxPerMinute: 1000 });
+  const r = await l.prepare(Object.assign({}, good, { firstBuySol: 0.25 }), ctx);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.transaction, Buffer.from('FIRST-BUY-TX').toString('base64'));
+  assert.equal(r.body.firstBuySol, 0.25);
+  const fb = calls.find(c => c.firstBuy).firstBuy;
+  assert.equal(fb.firstBuyParam.buyAmount.toString(), '250000000');
+  assert.equal(fb.firstBuyParam.buyer.toBase58(), CREATOR);
+  assert.equal(fb.firstBuyParam.receiver.toBase58(), CREATOR);
+  assert.equal(fb.createPoolParam.poolCreator.toBase58(), CREATOR);
+  assert.equal(calls.some(c => c.name === 'Salt Lantern'), false);       // the plain createPool was not used
+  // no first buy: the normal path, and the body says so
+  const plain = await l.prepare(good, ctx);
+  assert.equal(plain.body.firstBuySol, 0);
+  assert.equal(plain.body.transaction, Buffer.from('TX-BYTES').toString('base64'));
+  for (const bad of [-1, 0.001, 6, 'abc', NaN]) {
+    assert.equal((await l.prepare(Object.assign({}, good, { firstBuySol: bad }), ctx)).body.error, 'bad_amount', String(bad));
+  }
+});
+
+test('a first buy stays one transaction when the SDK returns the swap separately', async () => {
+  const calls = [];
+  calls.shape = 'object';
+  const l = createLauncher({ presets: PRESETS, load: fakeLoad(calls), logger: quiet, maxPerMinute: 1000 });
+  const r = await l.prepare(Object.assign({}, good, { firstBuySol: 0.1 }), ctx);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.transaction, Buffer.from('FIRST-BUY-TX').toString('base64'));
 });

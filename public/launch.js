@@ -86,11 +86,11 @@
       say('Preparing the transaction…');
       const res = await fetch('/api/launch/prepare', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preset: staged.preset, name: staged.name, symbol: staged.symbol, art: staged.art, creator: wallet, links: links })
+        body: JSON.stringify({ preset: staged.preset, name: staged.name, symbol: staged.symbol, art: staged.art, creator: wallet, links: links, firstBuySol: firstBuy })
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data || typeof data.transaction !== 'string') {
-        const why = { rate_limited: 'Too many launches. Wait a minute.', bad_name: 'That name is not allowed.', bad_symbol: 'Use 1 to 10 letters or digits for the ticker.', bad_art: 'That picture is no longer available. Make a new one.', bad_links: 'Check your links. A website needs https://, and X and Telegram take a handle like @yourcoin.', links_locked: 'Your links are locked because a launch was already started with this animal. Put the earlier links back, or draw a new animal to change them.', uri_too_long: 'That name is too long.', launch_unavailable: 'Launching is not switched on for this site.' };
+        const why = { rate_limited: 'Too many launches. Wait a minute.', bad_name: 'That name is not allowed.', bad_symbol: 'Use 1 to 10 letters or digits for the ticker.', bad_art: 'That picture is no longer available. Make a new one.', bad_amount: 'Buy at launch must be from 0.01 to 5 SOL, or left empty.', first_buy_unsupported: 'Buying at launch is not supported by this version of the curve library. Leave it empty.', bad_links: 'Check your links. A website needs https://, and X and Telegram take a handle like @yourcoin.', links_locked: 'Your links are locked because a launch was already started with this animal. Put the earlier links back, or draw a new animal to change them.', uri_too_long: 'That name is too long.', launch_unavailable: 'Launching is not switched on for this site.' };
         say((data && why[data.error]) || 'Could not prepare the launch. Try again.', true);
         busy = false; render();
         return;
@@ -102,7 +102,7 @@
       const state = await W.confirm(signature);
       if (state === 'confirmed') {
         say('Confirmed on devnet ✓ Your token is live. Trade it in the card below.');
-        document.dispatchEvent(new CustomEvent('animalpad:launched', { detail: { pool: data.pool, firstBuy: firstBuy } }));
+        document.dispatchEvent(new CustomEvent('animalpad:launched', { detail: { pool: data.pool } }));
       } else if (state === 'failed') {
         say('The transaction failed on-chain. Check the transaction link for the reason. Nothing was created.', true);
       } else {

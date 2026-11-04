@@ -178,24 +178,10 @@
   $('t-claim').addEventListener('click', claim);
 
   // A launch made on this page opens the card with its pool loaded.
-  document.addEventListener('animalpad:launched', async e => {
+  document.addEventListener('animalpad:launched', e => {
     $('t-pool').value = e.detail.pool;
     $('trade').open = true;
-    await load(e.detail.pool);
-    // The creator asked for a first buy: once the new pool can be read, start the buy (a second wallet approval).
-    const first = Number(e.detail.firstBuy);
-    if (first >= 0.01 && first <= 5) {
-      for (let i = 0; i < 4 && !(pool && pool.address === e.detail.pool); i++) {
-        await new Promise(r => setTimeout(r, 2500));
-        await load(e.detail.pool);
-      }
-      if (pool && pool.address === e.detail.pool) {
-        $('t-amt').value = String(first);
-        buy();
-      } else {
-        fail('Your coin is live, but its first buy could not start yet. Press Buy in a moment.');
-      }
-    }
+    load(e.detail.pool);
   });
 
   // The "Trade" buttons in the recent launches list open the card with that pool.

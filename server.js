@@ -210,7 +210,7 @@ function createApp(opts) {
         return launcher[action](body, { ip: clientIp(req), baseUrl: baseUrlFor(req), hasArt: id => Boolean(art.get(id)) })
           .then(r => {
             if (action === 'prepare' && r.status === 200 && launches) {
-              launches.record({ pool: r.body.pool, mint: r.body.mint, name: cleanText(body.name, 32), symbol: String(body.symbol || '').replace(/^\$/, '').trim().toUpperCase(), creator: body.creator, art: body.art, preset: body.preset });
+              launches.record({ pool: r.body.pool, mint: r.body.mint, name: cleanText(body.name, 32), symbol: String(body.symbol || '').replace(/^\$/, '').trim().toUpperCase(), creator: body.creator, art: body.art, preset: body.preset, devBuySol: r.body.firstBuySol });
             }
             if (action === 'prepare' && r.status === 200 && typeof body.art === 'string') {
               // Links are saved, then the picture is kept for good and its links are frozen.

@@ -239,3 +239,14 @@ test('server: /api/coin/chat looks the character up from the coin and refuses un
     assert.equal((await post({ message: 'hey' })).status, 400);
   });
 });
+
+test('the creator\'s first buy is remembered and shown, and nonsense amounts are ignored', async () => {
+  const mk = () => createLaunches({ inspect: chain(new Set([entry(1).pool, entry(2).pool, entry(3).pool])), logger: quiet, listTtlMs: 0 });
+  const l = mk();
+  l.record(entry(1, { devBuySol: 0.25 }));
+  l.record(entry(2, { devBuySol: -3 }));
+  l.record(entry(3, { devBuySol: 99 }));
+  assert.equal((await l.detail(entry(1).pool)).body.devBuySol, 0.25);
+  assert.equal((await l.detail(entry(2).pool)).body.devBuySol, 0);
+  assert.equal((await l.detail(entry(3).pool)).body.devBuySol, 0);
+});

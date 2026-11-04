@@ -107,12 +107,15 @@ function createLauncher(opts) {
       artId = typeof b.art === 'string' && ART_ID_RE.test(b.art) ? b.art : '';
       if (!artId || !(ctx && typeof ctx.hasArt === 'function' && ctx.hasArt(artId))) return { status: 400, body: { error: 'bad_art' } };
     }
+    // An optional first buy by the creator, put in the same transaction as the launch.
+    const firstBuySol = b.firstBuySol === undefined || b.firstBuySol === null || b.firstBuySol === '' ? 0 : Number(b.firstBuySol);
+    if (!Number.isFinite(firstBuySol) || firstBuySol < 0 || (firstBuySol > 0 && (firstBuySol < MIN_BUY_SOL || firstBuySol > MAX_BUY_SOL))) return { status: 400, body: { error: 'bad_amount' } };
     const base = String((ctx && ctx.baseUrl) || '').replace(/\/+$/, '');
     const uri = base + '/meta.json?n=' + encodeURIComponent(name) + '&s=' + encodeURIComponent(symbol) + (artId ? '&i=' + artId : '');
     if (!/^https?:\/\//.test(base) || uri.length > MAX_URI) return { status: 400, body: { error: 'uri_too_long' } };
 
     try {
-      const { sdk, web3, spl } = await load();
+      const { sdk, web3, spl, BN } = await load();
       const connection = new web3.Connection(rpcUrl, 'confirmed');
       const dbc = new sdk.DynamicBondingCurveClient(connection, 'confirmed');
       const creatorPk = new web3.PublicKey(b.creator);
@@ -121,10 +124,30 @@ function createLauncher(opts) {
 
       // Meteora's docs put createPool under client.creator; older builds used client.pool.
       const svc = dbc.creator && dbc.creator.createPool ? dbc.creator : dbc.pool;
-      const tx = await svc.createPool({
+      const createPoolParam = {
         baseMint: baseMint.publicKey, config: configPk, name, symbol, uri,
         payer: creatorPk, poolCreator: creatorPk
-      });
+      };
+      let tx;
+      if (firstBuySol > 0) {
+        // The pool is created and the creator's buy is in the same transaction, so nobody can buy before the
+        // creator. The pool does not exist yet, so there is nothing to front-run and no minimum is needed.
+        const fb = [dbc.creator, dbc.pool].find(s => s && typeof s.createPoolWithFirstBuy === 'function');
+        if (!fb || !BN) return { status: 501, body: { error: 'first_buy_unsupported' } };
+        const out = await fb.createPoolWithFirstBuy({
+          createPoolParam,
+          firstBuyParam: {
+            buyer: creatorPk, receiver: creatorPk, buyAmount: new BN(Math.floor(firstBuySol * 1e9)),
+            minimumAmountOut: new BN(0), referralTokenAccount: null
+          }
+        });
+        // Some SDK versions return the transaction itself, others an object holding it. Keep it one transaction.
+        tx = out && out.createPoolTx ? out.createPoolTx : out;
+        if (out && out.swapBuyTx && typeof tx.add === 'function') tx.add(out.swapBuyTx);
+        if (!tx || typeof tx.serialize !== 'function') throw new Error('createPoolWithFirstBuy returned something unexpected');
+      } else {
+        tx = await svc.createPool(createPoolParam);
+      }
       const latest = await connection.getLatestBlockhash('confirmed');
       tx.feePayer = creatorPk;
       tx.recentBlockhash = latest.blockhash;
@@ -138,6 +161,7 @@ function createLauncher(opts) {
           mint: baseMint.publicKey.toBase58(),
           pool: pool.toBase58(),
           preset: b.preset,
+          firstBuySol: firstBuySol > 0 ? firstBuySol : 0,
           cluster: 'devnet'
         }
       };

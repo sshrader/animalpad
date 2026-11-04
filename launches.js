@@ -51,6 +51,7 @@ function createLaunches(opts) {
     const entry = {
       pool: e && e.pool, mint: e && e.mint, name: e && e.name, symbol: e && e.symbol, creator: e && e.creator,
       art: e && ART_ID.test(e.art || '') ? e.art : '', preset: e && typeof e.preset === 'string' ? e.preset : '',
+      devBuySol: e && Number.isFinite(e.devBuySol) && e.devBuySol > 0 && e.devBuySol <= 5 ? e.devBuySol : 0,
       createdAt: now(), verified: false
     };
     if (!valid(entry)) return false;
@@ -142,6 +143,7 @@ function createLaunches(opts) {
       raisedSol: r.body.raisedSol, thresholdSol: r.body.thresholdSol, progress: r.body.progress,
       migrated: r.body.migrated, curveFull: r.body.curveFull,
       mood: moodFor(r.body),
+      devBuySol: Number(e.devBuySol) > 0 ? Number(e.devBuySol) : 0,
       siteVerified: Boolean(e.siteVerified && rec && rec.links && e.siteVerified === rec.links.website)
     } };
   }

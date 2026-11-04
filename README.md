@@ -69,7 +69,7 @@ Each launch has a page at `/coin/<pool address>` with its details, a mood badge 
 
 ## Buy at launch
 
-The launch panel has an optional first buy (0.01 to 5 SOL). After the launch confirms, the page runs the normal buy flow, which is a second wallet approval. It is a separate transaction, not part of the launch itself, so another buyer could get in between. A single atomic launch-and-buy needs the Meteora SDK's create-with-first-buy call, which has not been tested here.
+The launch panel has an optional first buy (0.01 to 5 SOL). It is put in the same transaction as the launch (the SDK's `createPoolWithFirstBuy`), so nobody can buy before the creator, and the creator approves once. The coin page shows how much the creator bought. The call returns one transaction in the SDK version Pawpad uses (1.5.13); this repo pins 2.0.0, where it is handled for both a bare transaction and a `{ createPoolTx, swapBuyTx }` result, but it has only been tested against a fake SDK, so try it on devnet before relying on it. The buyer needs enough test SOL for the buy plus fees. The pool does not exist yet, so the buy is sent with no minimum output.
 
 ## Website verification
 

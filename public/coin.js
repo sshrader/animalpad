@@ -110,6 +110,7 @@
     if (terms && Number.isFinite(terms.totalPct) && Number.isFinite(terms.creatorSharePct)) {
       fact('Trading fee', terms.totalPct + '% of every trade. The creator earns ' + terms.creatorSharePct + '% of it.');
     }
+    if (Number(c.devBuySol) > 0) fact('Creator first buy', 'The creator bought ' + Number(c.devBuySol) + ' SOL worth in the launch transaction, before anyone else could.');
     fact('Launched', when(c.createdAt));
     const ex = a => 'https://explorer.solana.com/address/' + encodeURIComponent(a) + '?cluster=devnet';
     [['Token address', c.mint], ['Pool address', c.pool], ['Creator wallet', c.creator]].forEach(x => {
