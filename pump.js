@@ -225,12 +225,12 @@ function createBuilder(web3) {
     // Anchor optional accounts cannot simply be left off: the program reads all 13 slots. A coin that has not moved to
     // PumpSwap has no pool, so that slot holds the program's own address (Anchor's "none"), and the two AMM accounts
     // are the usual fixed ones.
-    const AMM = new PublicKey('pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA');
+    const AMM_ID = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA';
     return instruction('fees', 'create_fee_sharing_config', {}, {
       payer, mint,
       pool: new PublicKey(PUMP_FEES),
-      pump_amm_program: AMM,
-      pump_amm_event_authority: pda([Buffer.from('__event_authority')], AMM)
+      pump_amm_program: new PublicKey(AMM_ID),
+      pump_amm_event_authority: pda([Buffer.from('__event_authority')], AMM_ID)
     }).instruction;
   }
 
