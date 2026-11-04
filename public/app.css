@@ -28,6 +28,7 @@ body { margin: 0; background: var(--ground); color: var(--text); font: 400 16px/
 .brand img { border-radius: 8px; }
 .chip-net { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 13px; font-weight: 500; }
 .chip-net::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--pop); }
+.chip-net.live::before { background: var(--ok); }
 .mode { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); color: var(--text); display: grid; place-items: center; padding: 0; }
 .mode::before { content: ""; width: 16px; height: 16px; border-radius: 50%; background: var(--text); box-shadow: inset -6px -2px 0 0 var(--paper); }
 :root[data-theme="light"] .mode::before { box-shadow: none; background: var(--pop); border: 2px solid var(--edge); width: 14px; height: 14px; }

@@ -121,7 +121,7 @@
       const m = err && err.message ? String(err.message) : '';
       if (err && err.code === 'no_wallet') { say('', false); fail(W.NO_WALLET); }
       else if (/reject|denied|cancel/i.test(m)) say('You declined the transaction.', true);
-      else { say('', false); fail('The claim did not go through. Check that your wallet is on Devnet.'); }
+      else { say('', false); fail('The claim did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet.' : 'Devnet.')); }
     }
     busy = false; renderInfo(); renderFees();
   }
@@ -167,7 +167,7 @@
       const m = err && err.message ? String(err.message) : '';
       if (err && err.code === 'no_wallet') { say('', false); fail(W.NO_WALLET); }
       else if (/reject|denied|cancel/i.test(m)) say('You declined the transaction.', true);
-      else { say('', false); fail('The buy did not go through. Check that your wallet is on Devnet and has test SOL.'); }
+      else { say('', false); fail('The buy did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet and has enough SOL.' : 'Devnet and has test SOL.')); }
     }
     busy = false; renderInfo();
   }

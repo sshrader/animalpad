@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>HatchPad</title>
-<meta name="description" content="Describe an animal. AI draws it and names it. Approve it, and launch it as a token on a Solana bonding curve. Devnet test version.">
+<meta name="description" content="Describe an animal. AI draws it and names it. Approve it, and launch it as a token on a Solana bonding curve.">
 <script>try { if (localStorage.getItem("animalpad-theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +22,8 @@
     <p class="brand"><img src="/icon.svg" alt="" width="30" height="30">HatchPad</p>
     <nav class="nav" aria-label="Sections"><a href="#recent">Recent launches</a><a href="#how">How it works</a><a href="#about">About</a></nav>
     <div class="row">
-      <span class="chip-net">Devnet · test coins only</span>
+      <span class="chip-net" data-net-only="devnet">Devnet · test coins only</span>
+      <span class="chip-net live" data-net-only="mainnet-beta" hidden>Live · real SOL</span>
       <button type="button" class="mode" id="theme" aria-label="Switch to light mode" title="Switch light or dark"></button>
     </div>
   </header>
@@ -81,7 +82,7 @@
 
     <section class="panel stack2" id="launch" hidden>
       <h2>Launch it</h2>
-      <p class="hint" id="dl-hint">Accept an animal first. Then connect Phantom, set to Devnet, and launch it with test SOL.</p>
+      <p class="hint" id="dl-hint">Accept an animal first. Then connect Phantom<span data-net-only="devnet">, set to Devnet,</span> and launch it<span data-net-only="devnet"> with test SOL</span>.</p>
       <div id="devnet-launch" hidden class="stack">
         <details class="links" id="links" open>
           <summary>Add your website and socials (optional)</summary>

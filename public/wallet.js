@@ -63,7 +63,7 @@
     return 'pending';
   }
 
-  const NO_WALLET = 'No Phantom wallet found. Install Phantom, switch it to Devnet (Settings, Developer Settings, Testnet Mode), then reload.';
+  const noWallet = () => 'No Phantom wallet found. Install Phantom' + (window.AnimalNet && window.AnimalNet.main ? '' : ', switch it to Devnet (Settings, Developer Settings, Testnet Mode)') + ', then reload.';
 
-  window.AnimalWallet = { provider, connect, signAndSend, confirm, NO_WALLET, get address() { return address; } };
+  window.AnimalWallet = { provider, connect, signAndSend, confirm, get NO_WALLET() { return noWallet(); }, get address() { return address; } };
 })();

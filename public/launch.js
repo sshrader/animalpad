@@ -62,7 +62,7 @@
     busy = true; render();
     try {
       wallet = await W.connect();
-      say('Connected ' + wallet.slice(0, 4) + '…' + wallet.slice(-4) + '. Phantom must be set to Devnet.');
+      say('Connected ' + wallet.slice(0, 4) + '…' + wallet.slice(-4) + '.' + (AnimalNet.main ? '' : ' Phantom must be set to Devnet.'));
     } catch (err) {
       say(err && err.code === 'no_wallet' ? W.NO_WALLET : 'Wallet connection was not approved.', true);
     }
@@ -112,7 +112,7 @@
       const m = err && err.message ? String(err.message) : '';
       say(err && err.code === 'no_wallet' ? W.NO_WALLET
         : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.'
-        : 'The launch did not go through. Check that your wallet is on Devnet and has test SOL.', true);
+        : 'The launch did not go through. Check that your wallet is on ' + (AnimalNet.main ? 'Solana mainnet and has enough SOL.' : 'Devnet and has test SOL.'), true);
     }
     busy = false; render();
   }
