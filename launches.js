@@ -116,7 +116,26 @@ function createLaunches(opts) {
     return running;
   }
 
-  return { record, list, size: () => entries.length };
+  // One launch for its own page: the same facts as the list, plus the description and links.
+  async function detail(pool) {
+    if (!B58.test(pool || '')) return { status: 400, body: { error: 'bad_pool' } };
+    const e = entries.find(x => x.pool === pool);
+    if (!e || hidden.has(pool)) return { status: 404, body: { error: 'not_found' } };
+    const r = await inspect(pool);
+    if (r.status === 404) return { status: 404, body: { error: 'not_found' } };
+    if (r.status !== 200) return { status: 502, body: { error: 'pool_read_failed' } };
+    const rec = e.art ? artRecord(e.art) : null;
+    return { status: 200, body: {
+      pool: e.pool, mint: e.mint, name: e.name, symbol: e.symbol, creator: e.creator, createdAt: e.createdAt,
+      description: rec && typeof rec.description === 'string' ? rec.description : '',
+      links: rec && rec.links && typeof rec.links === 'object' ? rec.links : {},
+      imageUrl: rec ? '/art/' + rec.id + '.' + (rec.ext === 'jpg' ? 'jpg' : 'png') : '',
+      raisedSol: r.body.raisedSol, thresholdSol: r.body.thresholdSol, progress: r.body.progress,
+      migrated: r.body.migrated, curveFull: r.body.curveFull
+    } };
+  }
+
+  return { record, list, detail, size: () => entries.length };
 }
 
 module.exports = { createLaunches };

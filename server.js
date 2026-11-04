@@ -166,6 +166,19 @@ function createApp(opts) {
       return;
     }
 
+    // One launch, for its own page.
+    const dm = /^\/api\/launches\/([1-9A-HJ-NP-Za-km-z]{32,44})$/.exec(pathname);
+    if (dm) {
+      const noStore = Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' });
+      if (!launches) return send(res, 404, JSON.stringify({ error: 'not_found' }), noStore);
+      launches.detail(dm[1]).then(r => send(res, r.status, req.method === 'HEAD' ? '' : JSON.stringify(r.body), noStore))
+        .catch(() => send(res, 500, JSON.stringify({ error: 'server_error' }), noStore));
+      return;
+    }
+
+    // A coin's own page. The page itself is the same for every coin; it reads the address from the link.
+    if (/^\/coin\/[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(pathname)) pathname = '/coin.html';
+
     // Whether the animal studio is switched on, so the page knows whether to offer it.
     if (pathname === '/api/art/config') {
       return send(res, 200, JSON.stringify(art.info()), Object.assign({}, JSON_TYPE, { 'Cache-Control': 'no-store' }));

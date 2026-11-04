@@ -154,3 +154,39 @@ test('server: /api/launches lists launches, and a prepared launch is recorded an
     assert.deepEqual(await (await fetch(base + '/api/launches')).json(), { launches: [] });
   });
 });
+
+test('a coin page: detail has the description and links, and unknown or bad pools are refused', async () => {
+  const onChain = new Set([entry(1).pool]);
+  const rec = { id: 'a'.repeat(16), ext: 'png', description: 'A sleepy heron.', links: { website: 'https://example.com' } };
+  const l = createLaunches({ inspect: chain(onChain), artRecord: id => (id === rec.id ? rec : null), logger: quiet, listTtlMs: 0 });
+  l.record(entry(1, { art: rec.id }));
+  l.record(entry(2));
+  const ok = await l.detail(entry(1).pool);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.description, 'A sleepy heron.');
+  assert.deepEqual(ok.body.links, { website: 'https://example.com' });
+  assert.equal(ok.body.imageUrl, '/art/' + rec.id + '.png');
+  assert.equal((await l.detail(entry(2).pool)).status, 404);   // recorded but not on-chain
+  assert.equal((await l.detail(entry(9).pool)).status, 404);   // never heard of
+  assert.equal((await l.detail('../etc/passwd')).status, 400);
+  const hid = createLaunches({ inspect: chain(onChain), logger: quiet, hidden: [entry(1).pool] });
+  hid.record(entry(1));
+  assert.equal((await hid.detail(entry(1).pool)).status, 404);
+});
+
+test('server: /coin/<pool> serves the coin page and /api/launches/<pool> its details', async () => {
+  const onChain = new Set([entry(1).pool]);
+  const launches = createLaunches({ inspect: chain(onChain), logger: quiet, listTtlMs: 0 });
+  launches.record(entry(1));
+  await withServer({ art: createArt({ logger: quiet }), launcher: null, launches }, async base => {
+    const page = await fetch(base + '/coin/' + entry(1).pool);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /coin\.js/);
+    assert.equal((await fetch(base + '/coin/not-an-address')).status, 404);
+    const d = await fetch(base + '/api/launches/' + entry(1).pool);
+    assert.equal(d.status, 200);
+    assert.equal((await d.json()).name, 'Animal 1');
+    assert.equal((await fetch(base + '/api/launches/' + entry(7).pool)).status, 404);
+    assert.equal((await fetch(base + '/api/launches/bad')).status, 404);
+  });
+});

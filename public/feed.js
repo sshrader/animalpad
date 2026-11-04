@@ -18,18 +18,24 @@
     const d = document.createElement('div');
     d.className = 'coin';
     // Only pictures from this site are shown.
+    const page = '/coin/' + encodeURIComponent(c.pool);
+    const pic = document.createElement('a');
+    pic.href = page; pic.setAttribute('aria-label', 'Open ' + c.name); pic.style.display = 'block';
     if (typeof c.imageUrl === 'string' && /^\/art\/[0-9a-f]{16}\.(png|jpg)$/.test(c.imageUrl)) {
       const im = document.createElement('img');
       im.src = c.imageUrl; im.alt = c.name + ' logo'; im.width = 160; im.height = 160; im.loading = 'lazy';
-      d.appendChild(im);
+      pic.appendChild(im);
     } else {
       const n = document.createElement('div');
       n.className = 'noimg'; n.textContent = (c.name || '?').charAt(0).toUpperCase();
-      d.appendChild(n);
+      pic.appendChild(n);
     }
+    d.appendChild(pic);
     const top = document.createElement('div');
     top.className = 'top2';
-    const name = document.createElement('strong'); name.textContent = c.name;
+    const name = document.createElement('strong');
+    const nl = document.createElement('a'); nl.href = page; nl.textContent = c.name; nl.style.color = 'inherit'; nl.style.textDecoration = 'none';
+    name.appendChild(nl);
     const sym = document.createElement('span'); sym.className = 'sym'; sym.textContent = '$' + c.symbol;
     top.appendChild(name); top.appendChild(sym);
     d.appendChild(top);
@@ -98,7 +104,7 @@
       while (placed.some(q => Math.hypot(q.x - cx, q.y - cy) < 30) && tries++ < 12) cy -= 16;
       placed.push({ x: cx, y: cy });
       const pct = Math.round(p * 100);
-      const g2 = el('g', { class: 'pin', tabindex: '0', role: 'button', 'aria-label': c.name + ', ' + pct + '% full. Open to trade.' }, svg);
+      const g2 = el('g', { class: 'pin', tabindex: '0', role: 'button', 'aria-label': c.name + ', ' + pct + '% full. Open its page.' }, svg);
       el('title', {}, g2).textContent = c.name + ' $' + c.symbol + ' · ' + pct + '% full';
       el('circle', { class: 'ring', cx: cx, cy: cy, r: 15 }, g2);
       if (typeof c.imageUrl === 'string' && /^\/art\/[0-9a-f]{16}\.(png|jpg)$/.test(c.imageUrl)) {
@@ -109,7 +115,7 @@
       } else {
         el('text', {x: cx, y: cy}, g2).textContent = (c.name || '?').charAt(0).toUpperCase();
       }
-      const open = () => document.dispatchEvent(new CustomEvent('animalpad:open-pool', { detail: { pool: c.pool } }));
+      const open = () => { location.href = '/coin/' + encodeURIComponent(c.pool); };
       g2.addEventListener('click', open);
       g2.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
     });

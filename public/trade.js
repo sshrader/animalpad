@@ -192,10 +192,23 @@
     $('trade').scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
+  // A coin's page links here with ?pool=<address>#trade.
+  (function () {
+    const p = new URLSearchParams(location.search).get('pool');
+    if (p && isAddress(p)) {
+      $('t-pool').value = p;
+      $('trade').open = true;
+      load(p);
+    }
+  })();
+
   // The card only shows when launching is switched on for this site.
   $('trade').hidden = true;
   fetch('/api/launch/config', { headers: { Accept: 'application/json' } })
     .then(r => r.json())
-    .then(info => { $('trade').hidden = !(info && info.enabled); })
+    .then(info => {
+      $('trade').hidden = !(info && info.enabled);
+      if (!$('trade').hidden && new URLSearchParams(location.search).get('pool')) $('trade').scrollIntoView({ block: 'center' });
+    })
     .catch(() => { $('trade').hidden = true; });
 })();
