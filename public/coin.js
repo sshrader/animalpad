@@ -134,6 +134,7 @@
     const row = add(parent, 'div', undefined, 'cp-fees');
     const text = add(row, 'span', 'Checking creator fees…', 'hint');
     const btn = add(row, 'button', 'Send out fees', 'btn'); btn.type = 'button'; btn.hidden = true;
+    const fix = add(row, 'button', 'Finish setup', 'btn'); fix.type = 'button'; fix.hidden = true;
     const status = add(parent, 'p', '', 'hint'); status.setAttribute('role', 'status');
     let info = null, busy = false;
     const WHY = {
@@ -148,6 +149,9 @@
         (info.splitOk ? ' · split ' + info.creatorPct + '% creator, ' + info.platformPct + '% HatchPad' : ' · fee split not set yet');
       btn.hidden = false;
       btn.disabled = busy || !info.splitOk || !(info.pendingSol > 0.00001);
+      // A launch that stopped before the fee split can be finished here by the creator's wallet.
+      fix.hidden = info.splitOk || !W || !W.address || W.address !== c.creator;
+      fix.disabled = busy;
     }
     function load() {
       return fetch('/api/launch/fees?address=' + encodeURIComponent(c.pool), { headers: { Accept: 'application/json' }, cache: 'no-store' })
@@ -173,6 +177,29 @@
       } catch (err) {
         const m = err && err.message ? String(err.message) : '';
         status.textContent = err && err.code === 'no_wallet' ? W.NO_WALLET : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.' : 'The payout did not go through. Check that the wallet has a little SOL for the network fee.';
+      }
+      busy = false; draw();
+    });
+    fix.addEventListener('click', async () => {
+      if (!info || busy || !W) return;
+      busy = true; draw(); status.textContent = 'Preparing the fee split…';
+      try {
+        const who = W.address || await W.connect();
+        const res = await fetch('/api/launch/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mint: c.pool, creator: who, firstBuySol: 0 }) });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data) { status.textContent = data && data.error === 'not_creator' ? 'Only the wallet that launched this coin can finish its setup.' : 'Could not prepare the fee split. Try again.'; busy = false; draw(); return; }
+        if (data.step !== 'split' || typeof data.transaction !== 'string') { status.textContent = 'The fee split is already set.'; busy = false; await load(); return; }
+        status.textContent = 'Approve the fee split in your wallet…';
+        const sig = await W.signAndSend(data.transaction);
+        status.textContent = 'Sent. Waiting for the network to confirm…';
+        const state = await W.confirm(sig);
+        busy = false;
+        if (state === 'confirmed') { await load(); status.textContent = 'Done ✓ The fee split is set.'; }
+        else if (state === 'failed') status.textContent = 'The fee split failed on-chain. Try again.';
+        else status.textContent = 'Not confirmed yet. Reload in a minute to see the result.';
+      } catch (err) {
+        const m = err && err.message ? String(err.message) : '';
+        status.textContent = err && err.code === 'no_wallet' ? W.NO_WALLET : /reject|denied|cancel/i.test(m) ? 'You declined the transaction.' : 'The fee split did not go through.' + (m ? ' Details: ' + m.slice(0, 200) : '');
       }
       busy = false; draw();
     });
